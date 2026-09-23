@@ -351,6 +351,24 @@ class SettingsActivity : AppCompatActivity() {
             listOf("page", "toast").indexOf(cfg.resultMode).coerceAtLeast(0)
         ) { cfg.resultMode = listOf("page", "toast")[it] }
         button("查看记忆（份数 / 最近一份）") { showMemory() }
+        // 每个联系人一份记忆 —— 逐个列出来，点谁看谁。
+        // 原来只有一个按钮把所有记忆糊在一起，想知道"张三记了啥"得自己在一大段文字里找
+        // （用户要求：在记忆里能看到不同人的记忆）。
+        run {
+            val mems = Memories.listAll(this)
+            if (mems.isEmpty()) {
+                sub("（还没有记忆：在微信里判读一次就有了）")
+            } else {
+                sub("共 ${mems.size} 份。点一个名字，下面日志区就显示那个人的记忆：")
+                for (m in mems) {
+                    val label = m.name.ifEmpty { "（没读到名字）" }
+                    button("$label · ${m.turns.size} 条对话 · ${m.facts.size} 条事实") {
+                        logText.text = Memories.contextBlock(m).ifEmpty { "（这份记忆还是空的）" }
+                        toast("已显示「$label」的记忆")
+                    }
+                }
+            }
+        }
         button("清空全部记忆") {
             val n = Memories.clearAll(this)
             toast("已清空 $n 份记忆")
