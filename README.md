@@ -2,6 +2,8 @@
 
 微信聊天里的**关系进展助手**：读屏 → Jev 判读 + 攻略度评分 → 聊天模型出 3 条候选回复，攻略度**常驻挂在屏幕上**。
 
+> **介绍页**：<https://nisaka520.github.io/JevGuide/> ｜ **下载**：[最新版 APK](https://github.com/Nisaka520/JevGuide/releases/latest)
+
 跟同门两个东西的分工：
 
 | 项目 | 形态 | 干什么 | 要 root？ |
