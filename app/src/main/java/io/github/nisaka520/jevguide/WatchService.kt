@@ -194,6 +194,15 @@ class WatchService : AccessibilityService() {
 
     /** 手动触发（磁贴 / 无障碍按钮 / 通知按钮 / 设置页） */
     fun analyzeNow(manual: Boolean = true) {
+        // 判读没出结果（也没失败）之前，第二次点不能再触发（用户要求）。
+        // 三个手动入口（浮条重扫 / 通知栏 / 无障碍按钮）都汇聚到这个函数，
+        // 在这里拦一道，等于全都拦住了 —— 原来只有自动那条路查了 busy。
+        if (Analyzer.busy()) {
+            android.widget.Toast.makeText(
+                this, "上一次还在判读，等这次出结果再点", android.widget.Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
         val cfg = Config(this)
         when (cfg.readMode) {
             "vision" -> analyzeByVision(cfg, manual)
