@@ -1,4 +1,4 @@
-package io.github.nisaka520.jevguide
+﻿package io.github.nisaka520.jevguide
 
 import android.content.Context
 import java.util.concurrent.Executors
@@ -27,7 +27,8 @@ object MemoryUpdater {
             try {
                 val r = ChatHttp.complete(
                     cfg.chatBaseUrl, cfg.chatApiKey, cfg.chatModel,
-                    buildSystem(), buildUser(mem), timeoutMs = 40000, maxTokens = 500, temperature = 0.3
+                    // 500 对思考型模型偏紧（思考也吃 token，摘要容易变空），给到 1000
+                    buildSystem(), buildUser(mem), timeoutMs = 40000, maxTokens = 1000, temperature = 0.3
                 )
                 when (r) {
                     is ChatResult.Ok -> {

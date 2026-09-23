@@ -98,7 +98,8 @@ object ChatHttp {
             system = "你是连通性自检助手，只按指令回复，不要多说一个字。",
             user = "回复两个字：可用",
             timeoutMs = 15000,
-            maxTokens = 16,
+            // 16 对思考型模型不够（思考就吃光了，content 会是空的），给到 200
+            maxTokens = 200,
             temperature = 0.0
         )
 
