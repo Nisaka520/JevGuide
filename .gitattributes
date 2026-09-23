@@ -1,3 +1,5 @@
+# 注意：权限位不在这个文件里 —— gradlew 必须是 100755（git update-index --chmod=+x gradlew）
+# 否则 Linux 上 ./gradlew 直接 exit 126，本地 Windows 完全看不出来
 # 行尾统一：源码与 gradlew 一律 LF（CI 在 Linux 上跑，gradlew 带 CRLF 会 bad interpreter）
 * text=auto eol=lf
 gradlew text eol=lf
