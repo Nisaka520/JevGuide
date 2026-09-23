@@ -120,6 +120,9 @@ class ResultActivity : AppCompatActivity() {
             setPadding(dp(20), dp(18), dp(20), dp(16))
         }
         setContentView(ScrollView(this).apply { addView(root) })
+        // 点弹窗之外的空白处也能关掉（用户要求）。这一屏用的是 Dialog 主题，
+        // 外面本来就有留白，这一行把那片留白变成可点。
+        setFinishOnTouchOutside(true)
 
         // ── 抬头：谁 + 什么关系 ──
         root.addView(text(if (title.isEmpty()) "微信" else title, 22f, cOnSurface, bold = true))
@@ -197,17 +200,18 @@ class ResultActivity : AppCompatActivity() {
             copy("Jev攻略", all)
             toast("已复制 ${drafts.size} 条文案")
         })
-        row.addView(btn("✕ 关闭", filled = true) { finish() }.apply {
-            // 关闭键要显眼：这一屏是浮在微信上面的，找不到"怎么退出去"最让人烦躁
-            textSize = 15f
-            setPadding(dp(28), paddingTop, dp(28), paddingBottom)
-        })
         root.addView(row)
 
         // 底部：随机一句与爱有关的古诗。纯文字，**不设点击监听**，点它不跳转（用户要求）。
         root.addView(
             text(Poems.random(), 12.5f, cOnSurfaceVariant, bold = false).apply { alpha = 0.85f },
-            matchWrap(top = 18, bottom = 4)
+            matchWrap(top = 18, bottom = 2)
+        )
+
+        // 提示：这一屏是 Dialog 主题，点四周空白就能关（用户要求：点弹窗外也能关，并且给提示）
+        root.addView(
+            text("点四周空白处关闭", 11.5f, cOnSurfaceVariant, bold = false).apply { alpha = 0.55f },
+            matchWrap(top = 2, bottom = 10)
         )
 
         statusLine.text = buildString {
