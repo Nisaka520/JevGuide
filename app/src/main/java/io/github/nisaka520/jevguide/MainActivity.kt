@@ -1,7 +1,12 @@
-﻿package io.github.nisaka520.jevguide
+package io.github.nisaka520.jevguide
 
+import android.Manifest
+import android.content.ComponentName
 import android.content.Intent
 import android.content.res.ColorStateList
+import android.os.Build
+import android.provider.Settings
+import android.widget.Toast
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
@@ -13,6 +18,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 
 /**
@@ -51,6 +57,10 @@ class MainActivity : AppCompatActivity() {
         title("Jev攻略")
         sub("点下面任一项进设置。判读本身不用打开这个 App —— 在微信里点浮条就行。")
 
+        // 状态 + 启动直接放首页：这两个是「能不能用」的关键，不该藏在二级页里
+        statusCard()
+        startButton()
+
         row(
             "设定无障碍和启动", "开无障碍服务、选读取方式（无障碍树／截图识别）、悬浮条开关",
             "a11y", 0xFF6FD3C7.toInt()
@@ -83,6 +93,111 @@ class MainActivity : AppCompatActivity() {
         super.onStop()
         ScoreOverlay.setSuppressed(Config(this), false)
     }
+
+    private lateinit var statusText: TextView
+
+    /** 首页顶部状态：一眼看清「能不能用」，不用点进去猜 */
+    private fun statusCard() {
+        statusText = TextView(this).apply {
+            setTextColor(cOnSurface)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            setLineSpacing(dp(5).toFloat(), 1f)
+            setPadding(dp(16), dp(14), dp(16), dp(14))
+            background = GradientDrawable().apply {
+                setColor(cContainerHigh)
+                cornerRadius = dp(20).toFloat()
+            }
+        }
+        page.addView(statusText, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply { topMargin = dp(12) })
+        refreshStatus()
+    }
+
+    /**
+     * 从系统设置授权回来时要重新读一遍：状态卡是建页面时填的，不刷新就会一直显示旧状态
+     * （用户刚授权完回到首页，却还写着「未开启」，会以为授权没生效）。
+     */
+    override fun onResume() {
+        super.onResume()
+        if (::statusText.isInitialized) refreshStatus()
+    }
+
+    private fun refreshStatus() {
+        val cfg = Config(this)
+        val a11y = when {
+            WatchService.instance != null -> "运行中 ✓"
+            a11yEnabled() -> "已授权，但服务还没连上（点启动重挂）"
+            else -> "未开启（点启动去授权）"
+        }
+        statusText.text = listOf(
+            "无障碍服务：$a11y",
+            "Jev 密钥：" + if (cfg.hasKey()) "已配置（${cfg.apiKey.length} 字符）" else "还没填",
+            "聊天模型：" + if (cfg.hasChatKey()) cfg.chatModel else "没配（只有判读，没有候选文案）",
+            "常驻浮条：" + if (cfg.overlayEnabled) "开" else "关"
+        ).joinToString("\n")
+    }
+
+    private fun startButton() {
+        val b = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonStyle).apply {
+            text = "启动"
+            textSize = 15f
+            isAllCaps = false
+            cornerRadius = dp(20)
+            setOnClickListener { doStart() }
+        }
+        page.addView(b, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply { topMargin = dp(12) })
+    }
+
+    /**
+     * 启动按钮。顺序有讲究：
+     *   1. 通知权限（Android 13+ 要用户点头，没它常驻通知不显示）
+     *   2. 无障碍没授权 → 直接把人送到系统设置（App 无权代开，只能请求授权）
+     *   3. 已授权 → restartSelf()：清掉上一次的浮层与按钮标志，再按当前配置重挂
+     *   4. 密钥没填 → 提醒去「模型密钥配置」
+     */
+    private fun doStart() {
+        askNotification()
+        if (WatchService.instance == null && !a11yEnabled()) {
+            toast("请在接下来弹出的系统设置里打开「Jev攻略」，然后回来再点一次启动")
+            try {
+                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            } catch (t: Throwable) {
+                toast("打不开系统无障碍设置：" + (t.message ?: ""))
+            }
+            return
+        }
+        val svc = WatchService.instance
+        if (svc == null) {
+            toast("已授权，但系统还没把服务连上，等 1~2 秒再点一次")
+            return
+        }
+        toast(svc.restartSelf())
+        if (!Config(this).hasKey()) toast("还没配 Jev 密钥，去「模型密钥配置」填一下")
+    }
+
+    /** 无障碍服务是否已在系统设置里被勾选（必须用实际包名，debug 包带 .debug 后缀） */
+    private fun a11yEnabled(): Boolean {
+        val want = ComponentName(this, WatchService::class.java).flattenToString()
+        val on = try {
+            Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES).orEmpty()
+        } catch (t: Throwable) {
+            ""
+        }
+        return on.split(':').any { it.equals(want, true) }
+    }
+
+    private fun askNotification() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        try {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
 
     /** 一行入口：左边一个色点（分区色），中间标题+说明，右边一个 › */
     private fun row(title: String, sub: String, section: String, accent: Int) {

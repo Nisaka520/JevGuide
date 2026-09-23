@@ -1,4 +1,4 @@
-package io.github.nisaka520.jevguide
+﻿package io.github.nisaka520.jevguide
 
 import android.accessibilityservice.AccessibilityButtonController
 import android.accessibilityservice.AccessibilityService
@@ -74,6 +74,30 @@ class WatchService : AccessibilityService() {
      *
      * 默认全关：浮条点一下就是同一个功能，屏幕上挂两个只会让人以为程序出了 bug。
      */
+    /**
+     * 幂等「启动」：先把上一次留下的东西清干净，再按当前配置重新起一遍。
+     *
+     * 为什么不能真的把服务杀掉重启：无障碍服务由系统托管，App 只能用 disableSelf() 关掉自己，
+     * 而**关掉之后没法自己再打开**（必须用户手动去系统设置里勾回来）—— 那样「启动」按钮就变成
+     * 「点一下还得去系统设置勾一次」，比不点更糟。
+     * 所以这里做的是清旧 + 重挂：浮层、无障碍按钮标志都按最新配置重来一遍，
+     * 效果上等于「杀掉前面那个、起了个新的」，但不需要用户再授权。
+     *
+     * @return 给界面 toast 的一句话
+     */
+    fun restartSelf(): String {
+        return try {
+            ScoreOverlay.hide()
+            syncButton()
+            restoreOverlay(Config(this))
+            AppLog.add("重新启动：已清理旧浮层与按钮标志，并按当前配置重挂")
+            "已重新启动（旧的浮层/按钮已清理）"
+        } catch (t: Throwable) {
+            AppLog.add("重新启动失败：${t.javaClass.simpleName} ${t.message ?: ""}")
+            "重新启动失败：" + (t.message ?: t.javaClass.simpleName)
+        }
+    }
+
     fun syncButton() {
         val want = Config(this).a11yButtonEnabled
         try {
