@@ -52,6 +52,14 @@ class MainActivity : AppCompatActivity() {
             v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             insets
         }
+        // Android 14（API 34）起，targetSdk >= 34 的应用里 overridePendingTransition **会被系统忽略** ——
+        // 实测就是「点进去完全没有动画」（用户反馈），而退出那半边因为是系统默认转场所以有动静。
+        // 新 API 必须写在 onCreate 里（转场发生前）才会生效，所以放在这里而不是点击回调里。
+        if (Build.VERSION.SDK_INT >= 34) {
+            overrideActivityTransition(
+                OVERRIDE_TRANSITION_OPEN, R.anim.slide_in_right, R.anim.slide_out_left
+            )
+        }
         setContentView(scroll)
 
         title("Jev攻略")

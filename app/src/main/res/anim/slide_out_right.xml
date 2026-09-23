@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Back: the closing page leaves through the right edge. -->
+<!-- Back: the closing page leaves through the right edge, 280ms. -->
 <set xmlns:android="http://schemas.android.com/apk/res/android">
     <translate
-        android:duration="420"
+        android:duration="280"
         android:fromXDelta="0"
         android:interpolator="@android:interpolator/decelerate_quint"
         android:toXDelta="100%p" />
     <alpha
-        android:duration="420"
+        android:duration="280"
         android:fromAlpha="1.0"
         android:interpolator="@android:interpolator/decelerate_quint"
         android:toAlpha="0.6" />

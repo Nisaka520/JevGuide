@@ -63,6 +63,13 @@ class SettingsActivity : AppCompatActivity() {
             // 内容延伸到系统栏下面时，别把最后一屏内容顶到导航条上
             clipToPadding = false
         }
+        // 同上：API 34+ 用 overrideActivityTransition 才生效（关闭方向）。
+        // 老的 overridePendingTransition 留在 finish() 里，给 API 33 及以下兜底。
+        if (Build.VERSION.SDK_INT >= 34) {
+            overrideActivityTransition(
+                OVERRIDE_TRANSITION_CLOSE, R.anim.slide_in_left, R.anim.slide_out_right
+            )
+        }
         setContentView(scroll)
         buildStatic()
         applyScreen(intent.getStringExtra("screen").orEmpty())

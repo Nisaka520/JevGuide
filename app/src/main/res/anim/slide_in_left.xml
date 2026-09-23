@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Back: the page underneath returns from -30%p, exactly where slide_out_left left it. -->
+<!-- Back: the page underneath returns from -30%p, where slide_out_left left it. 280ms: 420 was reported as sluggish on the way out. -->
 <set xmlns:android="http://schemas.android.com/apk/res/android">
     <translate
-        android:duration="420"
+        android:duration="280"
         android:fromXDelta="-30%p"
         android:interpolator="@android:interpolator/decelerate_quint"
         android:toXDelta="0" />
     <alpha
-        android:duration="420"
+        android:duration="280"
         android:fromAlpha="0.9"
         android:interpolator="@android:interpolator/decelerate_quint"
         android:toAlpha="1.0" />
