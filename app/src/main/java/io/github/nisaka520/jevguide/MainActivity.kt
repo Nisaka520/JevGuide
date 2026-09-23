@@ -90,6 +90,10 @@ class MainActivity : AppCompatActivity() {
             "memory", 0xFFB79CFF.toInt()
         )
         row(
+            "高级设置", "看/改发给聊天模型的提示词（追加额外要求），以及判读设置",
+            "adv", 0xFF7FB3FF.toInt()
+        )
+        row(
             "关于本软件", "版本、隐私说明、邀请码与免责声明",
             "about", 0xFF9AA8BB.toInt()
         )

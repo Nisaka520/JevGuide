@@ -1,4 +1,4 @@
-package io.github.nisaka520.jevguide
+﻿package io.github.nisaka520.jevguide
 
 /**
  * 一条候选回复。
@@ -47,10 +47,16 @@ object ReplyPrompt {
      * @param lang "zh" 用中文提示词；"en" 用英文提示词，但**仍然要求输出中文文案**
      *             （英文提问只是为了拿更高的遵守率，成品必须是中文，不然发给对方就露馅了）
      */
-    fun buildSystem(memoryBlock: String, lang: String): String {
+    fun buildSystem(memoryBlock: String, lang: String, extra: String = ""): String {
         // Memories.contextBlock 自己会带一个「【记忆】」抬头，这里别再套一层（否则提示词里出现两个标题）
         val memory = memoryBlock.trim().removePrefix("【记忆】").trim().ifEmpty { "（暂无记忆）" }
-        return if (lang == "en") systemEn(memory) else systemZh(memory)
+        val base = if (lang == "en") systemEn(memory) else systemZh(memory)
+        val add = extra.trim()
+        if (add.isEmpty()) return base
+        // 额外要求放在最末尾：模型对「最后一段」的注意力最高，而这段正是用户最在意的个性化部分。
+        // 后面那句「不得改变输出格式」是必须的 —— 否则模型很容易顺手把三段并成一段，解析就废了。
+        return base + "\n\n【额外要求（用户自定义，优先遵守）】\n" + add +
+            "\n（以上额外要求不得改变输出格式与硬性约束。）"
     }
 
     private fun systemZh(memory: String): String = buildString {

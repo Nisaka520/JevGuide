@@ -182,6 +182,17 @@ class Config(ctx: Context) {
         set(v) = sp.edit().putInt("overlay_y", v).apply()
 
     /** 最近一次读到的联系人名：视觉模型偶尔不返回标题，用它兜住，免得浮条只显示"微信" */
+    /**
+     * 追加到聊天模型 system 提示词末尾的「额外要求」（高级设置里填）。
+     *
+     * 为什么只做「追加」不做「整段替换」：输出格式（三段 + 标题行 + --- 分隔）和硬性约束
+     * 是解析端的契约，用户把那段改掉之后 ReplyPrompt.parse 就切不出三段了，
+     * 界面上只会剩一条糊在一起的文案 —— 那不是「自定义」，是坏掉。
+     */
+    var promptExtra: String
+        get() = sp.getString("prompt_extra", "") ?: ""
+        set(v) = sp.edit().putString("prompt_extra", v).apply()
+
     var lastContactName: String
         get() = sp.getString("last_contact_name", "").orEmpty()
         set(v) = sp.edit().putString("last_contact_name", v).apply()

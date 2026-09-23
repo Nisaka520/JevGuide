@@ -499,6 +499,28 @@ class SettingsActivity : AppCompatActivity() {
                 "请自行确认对方的隐私政策。请勿用于骚扰、跟踪或任何违法用途。"
         )
 
+        // ── 高级设置（首页第七个入口）──
+        section("高级设置（给聊天模型加要求）", "adv", 0xFF7FB3FF.toInt())
+        sub(
+            "下面写的话会作为「额外要求」**追加**到聊天模型的 system 提示词末尾。\n" +
+                "只加不改：输出格式（三段 + 标题行 + --- 分隔）与硬性约束由程序保证，" +
+                "改了那部分解析就切不出三段了。"
+        )
+        val extraBox = edit(cfg.promptExtra, "额外要求（留空 = 不加）", multiline = true)
+        button("保存额外要求", filled = true) {
+            cfg.promptExtra = extraBox.text.toString().trim()
+            android.widget.Toast.makeText(this, "已保存，下次生成文案生效", android.widget.Toast.LENGTH_SHORT).show()
+        }
+        button("清空（恢复默认）") {
+            extraBox.setText("")
+            cfg.promptExtra = ""
+            android.widget.Toast.makeText(this, "已清空", android.widget.Toast.LENGTH_SHORT).show()
+        }
+        body(
+            "当前发给聊天模型的完整提示词（只读；上面填的额外要求会接在最后）：\n\n" +
+                ReplyPrompt.buildSystem("（暂无记忆）", cfg.lang, cfg.promptExtra)
+        )
+
         section("维护", "about")
         logText = body("")
         button("刷新日志") { refreshDynamic() }

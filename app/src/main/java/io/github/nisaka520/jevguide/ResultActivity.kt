@@ -284,7 +284,7 @@ class ResultActivity : AppCompatActivity() {
             val user = ReplyPrompt.buildUser(emptyList(), state, n)
             val r = ChatHttp.complete(
                 cfg.chatBaseUrl, cfg.chatApiKey, cfg.chatModel,
-                ReplyPrompt.buildSystem(memBlock, cfg.lang), user
+                ReplyPrompt.buildSystem(memBlock, cfg.lang, cfg.promptExtra), user
             )
             runOnUiThread {
                 when (r) {
