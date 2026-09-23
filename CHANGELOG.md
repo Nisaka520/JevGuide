@@ -29,6 +29,13 @@
 
 ### 修复
 
+- **结果页叠成好几层**：结果页是对话框样式，`singleTop` 挡不住"服务用 `NEW_TASK` 拉起"这条路径的叠加 ——
+  真机 `dumpsys` 数出来本包挂了 6 个窗口（浮条 1 + `ResultActivity` **4** + 设置页 1），
+  用户看到的是"怎么有两个浮窗"。改成 `launchMode="singleInstance"` + `onNewIntent` 里 `recreate()` 复用同一窗口；
+  结果页打开期间用 `ScoreOverlay.setSuppressed()` 把浮条收起来，一次只给一个浮窗（切回微信浮条自动回来）
+- **屏幕上多一个系统悬浮圆钮**：配置里的 `flagRequestAccessibilityButton` 会让**系统**自己画一个
+  「无障碍快捷按钮」（ColorOS 上是右侧一个球），点一下也触发判读 —— 跟注不注册回调无关
+  （`dumpsys` 里 `requestA11yBtn=true`）。静态配置去掉该标志位，改为设置项 + `setServiceInfo()` 运行时可控，默认关
 - **明文 HTTP 被系统拦**：自建/自托管的 OpenAI 兼容端点常常只有 HTTP，而 targetSdk ≥ 28 默认禁止明文，
   报错还很难懂（`CLEARTEXT communication not permitted`）。加了 `network_security_config`：
   默认仍强制 HTTPS，只对自建节点 IP（n4 / n1 / localhost / 10.0.2.2）开白名单

@@ -191,6 +191,17 @@ class Config(ctx: Context) {
         get() = sp.getInt("last_overlay_percent", -1)
         set(v) = sp.edit().putInt("last_overlay_percent", v).apply()
 
+    /**
+     * 系统无障碍快捷按钮（屏幕边上一个圆钮，点了触发判读）。
+     *
+     * **默认关**：无障碍服务一旦注册了 AccessibilityButtonCallback，系统就会自己画一个悬浮按钮出来 ——
+     * 它跟常驻浮条功能完全重复（浮条点一下也是判读），两个都挂着只会让人问"怎么有两个东西"。
+     * 需要的话在设置里打开（有些 ROM 还要求去系统设置里把"无障碍快捷方式"绑到本服务）。
+     */
+    var a11yButtonEnabled: Boolean
+        get() = sp.getBoolean("a11y_button_enabled", false)
+        set(v) = sp.edit().putBoolean("a11y_button_enabled", v).apply()
+
     /** 聊天模型是否可用（与 Jev 同判据：≥20 字符） */
     fun hasChatKey(): Boolean = chatApiKey.length >= 20
 

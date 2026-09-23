@@ -309,7 +309,10 @@ class SettingsActivity : Activity() {
             "判读出来的攻略度会一直挂成一个小条（浮在微信上面），而不是弹个窗看一眼就没了。\n" +
                 "操作：**拖动**挪位置（位置会记住）｜**点一下**打开结果页看 3 条文案（还没有结果时点一下就是判读一次）｜**长按**隐藏。\n" +
                 "用的是无障碍浮层（TYPE_ACCESSIBILITY_OVERLAY），**不需要**「显示在其他应用上层」权限；\n" +
-                "服务被系统杀掉时它会一起消失（没有服务也就没有数据）。"
+                "服务被系统杀掉时它会一起消失（没有服务也就没有数据）。\n\n" +
+                "⚠ 屏幕边上如果还有个圆钮，那是**系统**给无障碍服务画的「无障碍快捷按钮」：\n" +
+                "本 App 一注册回调它就会冒出来，它不是本 App 画的窗口，所以关浮条关不掉它。\n" +
+                "它跟浮条功能重复（点一下都是判读），已默认注销；要留着就在下面打开。"
         )
         switchRow("常驻显示攻略度浮条", cfg.overlayEnabled) {
             cfg.overlayEnabled = it
@@ -326,6 +329,11 @@ class SettingsActivity : Activity() {
             }
         }
         switchRow("判读完自动弹结果页（默认关：攻略度已经在浮条上了）", cfg.overlayAutoResult) { cfg.overlayAutoResult = it }
+        switchRow("系统无障碍快捷按钮（和浮条功能重复，默认关）", cfg.a11yButtonEnabled) {
+            cfg.a11yButtonEnabled = it
+            WatchService.instance?.syncButton()
+            toast(if (it) "已注册（若没出现，去系统设置→无障碍→无障碍快捷方式 里绑本服务）" else "已注销，屏幕边上那个圆钮会消失")
+        }
         button("把浮条拉回左上角") {
             cfg.overlayX = 24
             cfg.overlayY = 420

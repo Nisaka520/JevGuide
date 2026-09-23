@@ -2,6 +2,7 @@ package io.github.nisaka520.jevguide
 
 import android.accessibilityservice.AccessibilityButtonController
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -32,7 +33,7 @@ class WatchService : AccessibilityService() {
         AppLog.add("无障碍服务已连接 v" + BuildConfig.VERSION_NAME)
         val cfg = Config(this)
         if (cfg.showNotification) showNotification() else cancelNotification()
-        registerButton()
+        syncButton()
         restoreOverlay(cfg)
     }
 
@@ -62,15 +63,41 @@ class WatchService : AccessibilityService() {
         }
     }
 
-    private fun registerButton() {
+    /**
+     * 注册/注销系统无障碍快捷按钮。
+     *
+     * ⚠ 两个开关都得管，少一个都不行（实测踩过）：
+     * 1. `a11y_config.xml` 里的 `flagRequestAccessibilityButton` —— 只要配置里带这个标志位，
+     *    **系统就会自己画一个悬浮圆钮**，跟本 App 注不注册回调无关（`dumpsys` 里 `requestA11yBtn=true`）。
+     *    所以这里在运行时用 `setServiceInfo()` 把它置位/清掉。
+     * 2. `AccessibilityButtonCallback` 的注册 —— 决定点下去有没有反应。
+     *
+     * 默认全关：浮条点一下就是同一个功能，屏幕上挂两个只会让人以为程序出了 bug。
+     */
+    fun syncButton() {
+        val want = Config(this).a11yButtonEnabled
         try {
-            accessibilityButtonController.registerAccessibilityButtonCallback(buttonCallback)
-            AppLog.add(
-                "无障碍按钮：" + if (accessibilityButtonController.isAccessibilityButtonAvailable) "可用"
-                else "当前不可用（去系统设置里把本服务设成无障碍快捷键）"
-            )
+            val info = serviceInfo
+            if (info != null) {
+                info.flags = if (want) {
+                    info.flags or AccessibilityServiceInfo.FLAG_REQUEST_ACCESSIBILITY_BUTTON
+                } else {
+                    info.flags and AccessibilityServiceInfo.FLAG_REQUEST_ACCESSIBILITY_BUTTON.inv()
+                }
+                setServiceInfo(info)
+            }
+            if (want) {
+                accessibilityButtonController.registerAccessibilityButtonCallback(buttonCallback)
+                AppLog.add(
+                    "无障碍按钮：已注册，" + if (accessibilityButtonController.isAccessibilityButtonAvailable) "可用"
+                    else "但系统没开（去系统设置 → 无障碍 → 无障碍快捷方式 里绑到本服务）"
+                )
+            } else {
+                accessibilityButtonController.unregisterAccessibilityButtonCallback(buttonCallback)
+                AppLog.add("无障碍按钮：已关（清掉 requestA11yBtn，系统那个悬浮圆钮会消失）")
+            }
         } catch (e: Exception) {
-            AppLog.add("注册无障碍按钮失败：${e.javaClass.simpleName}")
+            AppLog.add("无障碍按钮切换失败：${e.javaClass.simpleName} ${e.message ?: ""}")
         }
     }
 

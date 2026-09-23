@@ -1,9 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 只订阅微信；只读窗口内容 + 允许截屏（视觉读屏用），不注入、不模拟点击 -->
+<!--
+  只订阅微信；只读窗口内容 + 允许截屏（视觉读屏用），不注入、不模拟点击。
+
+  ⚠ 这里**故意不带** flagRequestAccessibilityButton：
+  带上它，系统就会自己画一个悬浮圆钮（ColorOS 上是右侧一个球），跟本 App 注不注册回调无关
+  （dumpsys 里能看到 requestA11yBtn=true）。它和常驻浮条功能重复，用户会以为程序坏了。
+  需要那个按钮时，设置里打开后由 WatchService.syncButton() 用 setServiceInfo() 在运行时加上。
+-->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeWindowContentChanged|typeWindowStateChanged|typeViewScrolled"
     android:accessibilityFeedbackType="feedbackGeneric"
-    android:accessibilityFlags="flagReportViewIds|flagRetrieveInteractiveWindows|flagIncludeNotImportantViews|flagRequestAccessibilityButton"
+    android:accessibilityFlags="flagReportViewIds|flagRetrieveInteractiveWindows|flagIncludeNotImportantViews"
     android:canRetrieveWindowContent="true"
     android:canTakeScreenshot="true"
     android:description="@string/a11y_desc"
