@@ -119,6 +119,40 @@ class ResultActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(18), dp(20), dp(16))
         }
+        // 结果页是用户停留最久的地方，底部放一行不打扰的赞助入口（aff 露出位）。
+        // 链接不硬编：走 Aff.keyUrl(当前厂商)，没配邀请码时自动回退到官方入口，
+        // 等于顺带给用户一个「去哪儿申请密钥」的方便。
+        // 措辞按披露要求写清楚：带码、双方都有奖励、用户价格不变、不想带码可以自己去官网。
+        run {
+            val p = Providers.byId(cfg.providerId)
+            val url = Aff.keyUrl(p)
+            if (url.isNotBlank()) {
+                val pad = (14 * resources.displayMetrics.density).toInt()
+                val tv = TextView(this).apply {
+                    text = if (Aff.hasLink(p.id)) {
+                        "本 App 免费开源 · 用 ${p.name} 的免费额度就能跑\n" +
+                            "点这里注册（含作者邀请码：你和作者各得平台奖励，你的价格与权益不变；" +
+                            "不想带码就直接去官网注册，一样能用）"
+                    } else {
+                        "本 App 免费开源 · 去 ${p.name} 申请密钥"
+                    }
+                    textSize = 11.5f
+                    setPadding(0, pad, 0, 0)
+                    alpha = 0.75f
+                    isClickable = true
+                    setOnClickListener {
+                        try {
+                            startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+                        } catch (t: Throwable) {
+                            android.widget.Toast.makeText(
+                                this@ResultActivity, "打不开浏览器：$url", android.widget.Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+                }
+                root.addView(tv)
+            }
+        }
         setContentView(ScrollView(this).apply { addView(root) })
 
         // ── 抬头：谁 + 什么关系 ──
