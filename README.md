@@ -182,13 +182,18 @@ HTTP 400  {"detail": "Too many score levels. Must have at most 10 levels."}
 
 ## 安装
 
+### 直接下载（推荐）
+
+不用自己编译：[**最新版 APK**](https://github.com/Nisaka520/JevGuide/releases/latest) —— 推 tag 时 CI 会自动跑单测、打包并发布。
+那份 APK 用的是仓库里那把**公开的 debug 签名**，跟本机 debug 版签名一致，所以能互相覆盖安装。
+
 ### 从源码构建
 
 ```bash
 # 需要 JDK 17 + Android SDK（platform 35）
 # local.properties 写 sdk.dir=...（或设 ANDROID_HOME）
 ./gradlew.bat assembleDebug        # 产物 app/build/outputs/apk/debug/app-debug.apk
-./gradlew.bat testDebugUnitTest    # 纯逻辑单测（89 个，不依赖设备）
+./gradlew.bat testDebugUnitTest    # 纯逻辑单测（132 个，不依赖设备）
 ```
 
 ### 装到手机
@@ -197,7 +202,7 @@ HTTP 400  {"detail": "Too many score levels. Must have at most 10 levels."}
 2. 打开 App → 「去开启无障碍」→ 系统设置里找到 **弦外之音** → 开启
 3. 填密钥：
    - **Jev 密钥**（`apikey_…`，判读与攻略度用）：[console.typesafe.ai](https://console.typesafe.ai) 登录 → API Keys → 新建
-   - **聊天模型密钥**（生成文案用）：默认 DeepSeek，任何 OpenAI 兼容端点都行
+   - **聊天模型密钥**（生成文案用）：默认智谱 GLM（`glm-5.3-flash`），任何 OpenAI 兼容端点都行
    - 走视觉读屏的话，**模型必须看得懂图**（GPT-4o / Qwen-VL / Gemini 这类；纯文本模型不行）
 4. 两个都点一下「测试」；再点「测试视觉读屏」，看它能不能把你的聊天页念出来
 5. 微信里打开聊天 → 点浮条 / 磁贴「攻略一下」/ 通知栏「判读一下」→ 浮条上出现攻略度，点它看 3 条文案
