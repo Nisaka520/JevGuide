@@ -1,4 +1,4 @@
-﻿package io.github.nisaka520.jevguide
+package io.github.nisaka520.jevguide
 
 import android.content.Context
 
@@ -50,7 +50,7 @@ class Config(ctx: Context) {
 
     /** 自动模式的防抖：新消息停下多久后才分析 */
     var autoDebounceMs: Int
-        get() = sp.getInt("auto_debounce_ms", 1200).coerceIn(400, 8000)
+        get() = sp.getInt("auto_debounce_ms", 500).coerceIn(400, 8000)
         set(v) = sp.edit().putInt("auto_debounce_ms", v.coerceIn(400, 8000)).apply()
 
     /** 是否尝试把引用块合成一条（启发式，默认关） */
