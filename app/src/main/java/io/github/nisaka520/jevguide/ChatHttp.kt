@@ -43,15 +43,33 @@ object ChatHttp {
         maxTokens: Int = 900,
         temperature: Double = 0.8
     ): ChatResult {
+        val messages = listOf(
+            linkedMapOf<String, Any?>("role" to "system", "content" to system),
+            linkedMapOf<String, Any?>("role" to "user", "content" to user)
+        )
+        return completeMessages(baseUrl, apiKey, model, messages, timeoutMs, maxTokens, temperature)
+    }
+
+    /**
+     * 通用入口：自己拼 messages。
+     *
+     * 为什么需要它：视觉读屏要发**图**，`content` 得是 `[{type:text},{type:image_url}]` 这种数组，
+     * 只发两段纯文本的 [complete] 覆盖不到；而 endpoint/post/contentOf 这些细节不该在外面重写一遍。
+     */
+    fun completeMessages(
+        baseUrl: String,
+        apiKey: String,
+        model: String,
+        messages: List<Map<String, Any?>>,
+        timeoutMs: Int = 30000,
+        maxTokens: Int = 900,
+        temperature: Double = 0.8
+    ): ChatResult {
         // 先把"根本发不出去"的配置拦下来：这三条错误比任何 HTTP 报错都好懂
         if (baseUrl.isBlank()) return ChatResult.Err("base_url 没填")
         if (apiKey.isBlank()) return ChatResult.Err("API Key 没填")
         if (model.isBlank()) return ChatResult.Err("模型名没填")
 
-        val messages = listOf(
-            linkedMapOf<String, Any?>("role" to "system", "content" to system),
-            linkedMapOf<String, Any?>("role" to "user", "content" to user)
-        )
         val payload = linkedMapOf<String, Any?>(
             "model" to model,
             "messages" to messages,

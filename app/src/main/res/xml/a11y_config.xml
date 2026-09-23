@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 只订阅微信；只读窗口内容（不截屏、不注入） -->
+<!-- 只订阅微信；只读窗口内容 + 允许截屏（视觉读屏用），不注入、不模拟点击 -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeWindowContentChanged|typeWindowStateChanged|typeViewScrolled"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagReportViewIds|flagRetrieveInteractiveWindows|flagIncludeNotImportantViews|flagRequestAccessibilityButton"
     android:canRetrieveWindowContent="true"
+    android:canTakeScreenshot="true"
     android:description="@string/a11y_desc"
     android:notificationTimeout="150"
     android:packageNames="com.tencent.mm"

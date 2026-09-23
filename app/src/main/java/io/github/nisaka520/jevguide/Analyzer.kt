@@ -138,13 +138,27 @@ object Analyzer {
                         memoryBlock = memBlock,
                         chatReady = cfg.hasChatKey()
                     )
-                    val shown = cfg.resultMode == "page" && ResultActivity.show(ctx, payload)
-                    if (!shown) {
-                        if (cfg.resultMode == "page") {
-                            notifyFallback(ctx, digest.title, lines, drafts)
-                        } else {
-                            Toast3.showLines(ctx, lines, cfg.toastGapMs)
+
+                    // 攻略度优先上**常驻浮层**：一眼就能看到，不用弹窗挡着聊天
+                    ScoreOverlay.lastPayload = payload
+                    val overlayText = ScoreOverlay.format(digest.title, guide, trend)
+                    cfg.lastOverlayText = overlayText
+                    cfg.lastOverlayPercent = guide ?: -1
+                    val svc = WatchService.instance
+                    if (svc != null) {
+                        ScoreOverlay.show(svc, cfg, overlayText, guide)
+                    }
+
+                    // 结果页只在"没开浮层"或"明确要求自动弹"时出现；否则点浮层才打开
+                    val wantPage = cfg.resultMode == "page" && (!cfg.overlayEnabled || cfg.overlayAutoResult)
+                    when {
+                        wantPage -> {
+                            if (!ResultActivity.show(ctx, payload)) {
+                                notifyFallback(ctx, digest.title, lines, drafts)
+                            }
                         }
+                        cfg.resultMode != "page" -> Toast3.showLines(ctx, lines, cfg.toastGapMs)
+                        else -> Toast3.toast(ctx, "已更新：$overlayText（点浮层看 ${drafts.size} 条文案）")
                     }
 
                     // ── 攒够新对话就刷新一次长期摘要 ──

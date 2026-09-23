@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  debug 版专属清单：把判读广播**临时**开放出去，方便用 adb 远程触发，不用手点通知栏。
+
+      adb shell am broadcast -a io.github.nisaka520.jevguide.NOW \
+        -n io.github.nisaka520.jevguide.debug/io.github.nisaka520.jevguide.AnalyzeReceiver
+      adb shell am broadcast -a io.github.nisaka520.jevguide.DUMP -n ...（导出一份抓屏诊断）
+
+  ⚠ 只在 debug 变体里存在，release 构建永远拿不到这个 intent-filter（见 src/main/AndroidManifest.xml
+  里那个 exported="false" 的版本）。之所以敢开放：debug 包本来就只有开发者自己装，
+  而且它做的事跟通知栏按钮完全一样 —— 没有任何额外的能力。
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application>
+        <receiver
+            android:name=".AnalyzeReceiver"
+            android:exported="true"
+            tools:replace="android:exported">
+            <intent-filter>
+                <action android:name="io.github.nisaka520.jevguide.NOW" />
+                <action android:name="io.github.nisaka520.jevguide.DUMP" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

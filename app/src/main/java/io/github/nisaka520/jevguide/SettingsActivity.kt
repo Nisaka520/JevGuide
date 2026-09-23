@@ -251,6 +251,106 @@ class SettingsActivity : Activity() {
             AppLog.add("已清空全部记忆：$n 份")
         }
 
+        // 读取方式
+        section("读取方式（无障碍树 / 视觉模型）")
+        sub(
+            "微信 8.0.76 起**屏蔽了无障碍树**：实测连系统自带的 uiautomator 抓微信都是 0 个文字节点\n" +
+                "（系统设置能读到 15 个、桌面能读到 280 行 —— 所以不是本 App 的问题，是微信不给）。\n" +
+                "但**截屏是能拍到的**，于是多了一条路：截屏 → 交给看得懂图的模型念成「谁说了什么」，\n" +
+                "后面的判读 / 攻略度 / 文案流程完全不变。代价：每次多一次带图调用（约 5~10 秒）。\n" +
+                "「自动」＝先试免费的无障碍树，读空了才走视觉。"
+        )
+        spinner(
+            "读取方式", listOf("自动（先无障碍，读空转视觉）", "只用无障碍树", "只用视觉读屏"),
+            listOf("auto", "a11y", "vision").indexOf(cfg.readMode).coerceAtLeast(0)
+        ) { cfg.readMode = listOf("auto", "a11y", "vision")[it] }
+        val vBase = edit(cfg.visionBaseUrl, "留空＝跟聊天模型共用（当前 ${cfg.chatBaseUrl}）")
+        val vKey = edit(cfg.visionApiKey, "留空＝跟聊天模型共用", password = true)
+        val vModel = edit(cfg.visionModel, "留空＝跟聊天模型共用（当前 ${cfg.chatModel}）")
+        button("保存视觉读屏配置") {
+            cfg.visionBaseUrl = vBase.text.toString().trim()
+            cfg.visionApiKey = vKey.text.toString().trim()
+            cfg.visionModel = vModel.text.toString().trim()
+            toast("已保存（模型：" + VisionReader.endpointOf(cfg).third + "）")
+            refreshDynamic()
+        }
+        button("测试视觉读屏（现在截一张，看读到什么）") {
+            val svc = WatchService.instance
+            if (svc == null) {
+                toast("无障碍服务没在运行")
+                return@button
+            }
+            if (!VisionReader.available()) {
+                toast("系统低于 Android 11，用不了无障碍截图")
+                return@button
+            }
+            toast("正在截图识别…")
+            VisionReader.capture(svc, cfg) { d, err ->
+                runOnUiThread {
+                    if (d == null) {
+                        logText.text = "视觉读屏失败：\n" + (err ?: "未知原因")
+                        toast("失败：" + (err ?: "未知原因"), true)
+                    } else {
+                        val sb = StringBuilder()
+                        sb.append("视觉读屏读到（标题=「").append(d.title).append("」）：\n")
+                        sb.append("共 ").append(d.msgs.size).append(" 条，其中对方 ")
+                            .append(d.msgs.count { !it.mine }).append(" 条\n\n")
+                        d.msgs.forEach { sb.append(if (it.mine) "我：" else "对方：").append(it.text).append('\n') }
+                        logText.text = sb.toString()
+                        toast("读到 ${d.msgs.size} 条（对方 ${d.msgs.count { !it.mine }} 条）")
+                    }
+                }
+            }
+        }
+
+        // 常驻悬浮条
+        section("常驻悬浮条（把攻略度挂在屏幕上）")
+        sub(
+            "判读出来的攻略度会一直挂成一个小条（浮在微信上面），而不是弹个窗看一眼就没了。\n" +
+                "操作：**拖动**挪位置（位置会记住）｜**点一下**打开结果页看 3 条文案（还没有结果时点一下就是判读一次）｜**长按**隐藏。\n" +
+                "用的是无障碍浮层（TYPE_ACCESSIBILITY_OVERLAY），**不需要**「显示在其他应用上层」权限；\n" +
+                "服务被系统杀掉时它会一起消失（没有服务也就没有数据）。"
+        )
+        switchRow("常驻显示攻略度浮条", cfg.overlayEnabled) {
+            cfg.overlayEnabled = it
+            val svc = WatchService.instance
+            if (svc == null) {
+                toast("无障碍服务没在运行，开服务后生效")
+            } else if (it) {
+                val t = cfg.lastOverlayText.ifEmpty { ScoreOverlay.format("微信", null, null) }
+                ScoreOverlay.show(svc, cfg, t, cfg.lastOverlayPercent.takeIf { p -> p >= 0 })
+                toast("已显示")
+            } else {
+                ScoreOverlay.hide()
+                toast("已隐藏")
+            }
+        }
+        switchRow("判读完自动弹结果页（默认关：攻略度已经在浮条上了）", cfg.overlayAutoResult) { cfg.overlayAutoResult = it }
+        button("把浮条拉回左上角") {
+            cfg.overlayX = 24
+            cfg.overlayY = 420
+            val svc = WatchService.instance
+            if (svc != null && cfg.overlayEnabled) {
+                ScoreOverlay.hide()
+                val t = cfg.lastOverlayText.ifEmpty { ScoreOverlay.format("微信", null, null) }
+                ScoreOverlay.show(svc, cfg, t, cfg.lastOverlayPercent.takeIf { p -> p >= 0 })
+            }
+            toast("位置已重置")
+        }
+        button("手动显示 / 隐藏浮条") {
+            val svc = WatchService.instance
+            if (svc == null) {
+                toast("无障碍服务没在运行")
+            } else if (ScoreOverlay.isShowing()) {
+                ScoreOverlay.hide()
+                toast("已隐藏（开关仍为开，重启服务会回来）")
+            } else {
+                val t = cfg.lastOverlayText.ifEmpty { ScoreOverlay.format("微信", null, null) }
+                ScoreOverlay.show(svc, cfg, t, cfg.lastOverlayPercent.takeIf { p -> p >= 0 })
+                toast("已显示")
+            }
+        }
+
         // 抓屏诊断
         section("抓屏诊断（读不到消息时用这个）")
         sub(
@@ -324,6 +424,13 @@ class SettingsActivity : Activity() {
             append("攻略度：").append(if (cfg.guideEnabled) "开" else "关")
             append(" · 记忆：").append(if (cfg.memoryEnabled) "开（${Memories.listAll(this@SettingsActivity).size} 份）" else "关")
             append('\n')
+            append("读取方式：").append(
+                when (cfg.readMode) {
+                    "vision" -> "只用视觉读屏（${VisionReader.endpointOf(cfg).third}）"
+                    "a11y" -> "只用无障碍树"
+                    else -> "自动（无障碍优先，读空转视觉）"
+                }
+            ).append('\n')
             append("当前设置：").append(cfg.lang).append(" · ").append(cfg.model)
             append(" · 情绪 ").append(cfg.emotionTop).append(" 条 · 上下文 ").append(cfg.contextN).append(" 句")
             append(" · 自动判读 ").append(if (cfg.autoAnalyze) "开" else "关")

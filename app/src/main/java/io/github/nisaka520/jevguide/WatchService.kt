@@ -30,8 +30,21 @@ class WatchService : AccessibilityService() {
         super.onServiceConnected()
         instance = this
         AppLog.add("无障碍服务已连接 v" + BuildConfig.VERSION_NAME)
-        if (Config(this).showNotification) showNotification() else cancelNotification()
+        val cfg = Config(this)
+        if (cfg.showNotification) showNotification() else cancelNotification()
         registerButton()
+        restoreOverlay(cfg)
+    }
+
+    /** 服务重启后把上次的攻略度浮层照原样挂回去，不用等下一次判读 */
+    private fun restoreOverlay(cfg: Config) {
+        if (!cfg.overlayEnabled) {
+            ScoreOverlay.hide()
+            return
+        }
+        val text = cfg.lastOverlayText.ifEmpty { ScoreOverlay.format("微信", null, null) }
+        val pct = cfg.lastOverlayPercent.takeIf { it >= 0 }
+        ScoreOverlay.show(this, cfg, text, pct)
     }
 
     /** 系统无障碍按钮/快捷键（三指长按之类）：注册回调才会触发 */
@@ -76,8 +89,16 @@ class WatchService : AccessibilityService() {
     private fun autoRun() {
         pending = null
         val cfg = Config(this)
-        val d = WeChatReader.capture(this, cfg.linkQuotes) ?: return
-        val t = d.latestPeerMessage()?.text ?: return
+        val d = WeChatReader.capture(this, cfg.linkQuotes)
+        val t = d?.latestPeerMessage()?.text
+        if (t == null) {
+            // 无障碍树空着（微信屏蔽了无障碍）→ 自动模式下也退到视觉读屏，否则自动判读等于失效
+            if (d != null && cfg.readMode != "a11y") {
+                AppLog.add("自动模式：无障碍树为空，改用视觉读屏")
+                analyzeByVision(cfg, manual = false)
+            }
+            return
+        }
         if (t == lastPeerText) return                       // 没有新消息，别重复判读
         lastPeerText = t
         AppLog.add("自动模式：检测到新消息")
@@ -87,12 +108,61 @@ class WatchService : AccessibilityService() {
     /** 手动触发（磁贴 / 无障碍按钮 / 通知按钮 / 设置页） */
     fun analyzeNow(manual: Boolean = true) {
         val cfg = Config(this)
+        when (cfg.readMode) {
+            "vision" -> analyzeByVision(cfg, manual)
+            "a11y" -> analyzeByTree(cfg, manual)
+            else -> {
+                // auto：先走无障碍树（免费、快）；微信屏蔽了树的时候它必然是空的，那就退到视觉读屏
+                val d = WeChatReader.capture(this, cfg.linkQuotes)
+                if (d == null) {
+                    if (manual) Toast3.toast(this, "现在的前台不是微信")
+                    return
+                }
+                if (d.latestPeerMessage() != null) {
+                    Analyzer.run(this, d, manual)
+                    return
+                }
+                AppLog.add("无障碍树里没有对方消息（微信可能屏蔽了无障碍），自动改用视觉读屏")
+                analyzeByVision(cfg, manual)
+            }
+        }
+    }
+
+    /** 老路子：从无障碍树读 */
+    private fun analyzeByTree(cfg: Config, manual: Boolean) {
         val d = WeChatReader.capture(this, cfg.linkQuotes)
         if (d == null) {
             if (manual) Toast3.toast(this, "现在的前台不是微信")
             return
         }
         Analyzer.run(this, d, manual)
+    }
+
+    /**
+     * 新路子：截屏 → 视觉模型念成文字。
+     *
+     * 为什么要有它：微信 8.0.76 不给无障碍树（连系统 uiautomator 都读到 0 个文字节点），
+     * 但截屏能拍到 —— 让一个看得懂图的模型把画面转成「谁说了什么」，后面的判读流程完全不用改。
+     */
+    private fun analyzeByVision(cfg: Config, manual: Boolean) {
+        if (!VisionReader.available()) {
+            if (manual) Toast3.toast(this, "系统低于 Android 11，视觉读屏用不了（改用无障碍树）", true)
+            return
+        }
+        if (!cfg.hasVisionKey()) {
+            if (manual) Toast3.toast(this, "视觉读屏要配聊天模型密钥：设置 → 聊天模型", true)
+            return
+        }
+        if (cfg.showAnalyzing) Toast3.toast(this, "正在截图识别…")
+        VisionReader.capture(this, cfg) { d, err ->
+            if (d == null) {
+                AppLog.add("视觉读屏失败：" + (err ?: "未知原因"))
+                Toast3.toast(this, err ?: "视觉读屏失败", true)
+            } else {
+                AppLog.add("视觉读屏：标题=「${d.title}」读到 ${d.msgs.size} 条（对方 ${d.msgs.count { !it.mine }} 条）")
+                Analyzer.run(this, d, manual)
+            }
+        }
     }
 
     /**
@@ -130,12 +200,14 @@ class WatchService : AccessibilityService() {
     override fun onUnbind(intent: Intent?): Boolean {
         instance = null
         cancelNotification()
+        ScoreOverlay.hide()          // 服务没了，浮层也不该留在屏幕上
         AppLog.add("无障碍服务已断开")
         return super.onUnbind(intent)
     }
 
     override fun onDestroy() {
         instance = null
+        ScoreOverlay.hide()
         super.onDestroy()
     }
 

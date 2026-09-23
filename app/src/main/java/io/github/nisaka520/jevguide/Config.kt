@@ -132,6 +132,65 @@ class Config(ctx: Context) {
         get() = sp.getString("result_mode", "page").orEmpty().ifEmpty { "page" }
         set(v) = sp.edit().putString("result_mode", v).apply()
 
+    // ══════════════════ 读取方式（无障碍树 / 视觉模型）══════════════════
+    //
+    // 为什么会有这个开关：微信 8.0.76 把无障碍树整个屏蔽了 —— 实测连系统自带的 uiautomator
+    // 抓微信都是 0 个文字节点（407 字节空树），所以"从无障碍树读消息"在新版微信上必然读空。
+    // 但截屏是能拍到的（不是 FLAG_SECURE），于是多了"截图 → 视觉模型念成文字"这条路。
+
+    /** auto=先试无障碍树，读空就自动退到视觉 ｜ a11y=只读无障碍树 ｜ vision=只用视觉 */
+    var readMode: String
+        get() = sp.getString("read_mode", "auto").orEmpty().ifEmpty { "auto" }
+        set(v) = sp.edit().putString("read_mode", v).apply()
+
+    /** 视觉读屏单独指定端点；留空就跟「聊天模型」共用一套配置 */
+    var visionBaseUrl: String
+        get() = sp.getString("vision_base_url", "").orEmpty()
+        set(v) = sp.edit().putString("vision_base_url", v.trim()).apply()
+
+    var visionApiKey: String
+        get() = sp.getString("vision_api_key", "").orEmpty()
+        set(v) = sp.edit().putString("vision_api_key", v.trim()).apply()
+
+    /** 视觉读屏的模型名（必须是**看得懂图**的模型）；留空就跟文案用同一个 */
+    var visionModel: String
+        get() = sp.getString("vision_model", "").orEmpty()
+        set(v) = sp.edit().putString("vision_model", v.trim()).apply()
+
+    /** 视觉读屏的密钥是否可用（单独填了用单独的，否则看聊天模型那把） */
+    fun hasVisionKey(): Boolean = (visionApiKey.ifEmpty { chatApiKey }).length >= 20
+
+    // ══════════════════ 常驻悬浮条（把攻略度一直挂在屏幕上）══════════════════
+
+    /** 常驻显示当前联系人的攻略度（无障碍浮层，不需要"显示在其他应用上层"权限） */
+    var overlayEnabled: Boolean
+        get() = sp.getBoolean("overlay_enabled", true)
+        set(v) = sp.edit().putBoolean("overlay_enabled", v).apply()
+
+    /** 判读完是否自动弹结果页（默认关：攻略度已经在浮层上了，要看文案再点浮层） */
+    var overlayAutoResult: Boolean
+        get() = sp.getBoolean("overlay_auto_result", false)
+        set(v) = sp.edit().putBoolean("overlay_auto_result", v).apply()
+
+    /** 浮层位置（拖动后记住） */
+    var overlayX: Int
+        get() = sp.getInt("overlay_x", 24)
+        set(v) = sp.edit().putInt("overlay_x", v).apply()
+
+    var overlayY: Int
+        get() = sp.getInt("overlay_y", 420)
+        set(v) = sp.edit().putInt("overlay_y", v).apply()
+
+    /** 浮层上最近显示的文字与分数：服务重启后照原样恢复，不用等下次判读 */
+    var lastOverlayText: String
+        get() = sp.getString("last_overlay_text", "").orEmpty()
+        set(v) = sp.edit().putString("last_overlay_text", v).apply()
+
+    /** -1 表示还没有过分数 */
+    var lastOverlayPercent: Int
+        get() = sp.getInt("last_overlay_percent", -1)
+        set(v) = sp.edit().putInt("last_overlay_percent", v).apply()
+
     /** 聊天模型是否可用（与 Jev 同判据：≥20 字符） */
     fun hasChatKey(): Boolean = chatApiKey.length >= 20
 
