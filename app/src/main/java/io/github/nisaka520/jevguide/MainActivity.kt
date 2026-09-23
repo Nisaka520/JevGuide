@@ -68,6 +68,7 @@ class MainActivity : AppCompatActivity() {
         // 状态 + 启动直接放首页：这两个是「能不能用」的关键，不该藏在二级页里
         statusCard()
         startButton()
+        stopButton()
 
         row(
             "设定无障碍和启动", "开无障碍服务、选读取方式（无障碍树／截图识别）、抓屏诊断",
@@ -152,6 +153,33 @@ class MainActivity : AppCompatActivity() {
             "聊天模型：" + if (cfg.hasChatKey()) cfg.chatModel else "没配（只有判读，没有候选文案）",
             "常驻浮条：" + if (cfg.overlayEnabled) "开" else "关"
         ).joinToString("\n")
+    }
+
+    private fun stopButton() {
+        val b = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            text = "关闭"
+            textSize = 15f
+            isAllCaps = false
+            cornerRadius = dp(20)
+            setOnClickListener { doStop() }
+        }
+        page.addView(b, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply { topMargin = dp(8) })
+    }
+
+    /**
+     * 关闭：停掉判读、收起浮条、撤掉通知、注销无障碍服务，然后清掉整个任务栈。
+     *
+     * 关于「关闭所有进程」：Android 不给 App 杀自己进程的权限（那是系统的活），
+     * 而且杀进程也不会关掉无障碍服务 —— 服务是系统托管的。所以这里做的是
+     * disableSelf()（真正注销服务）+ finishAndRemoveTask()（把任务栈里的界面全清掉），
+     * 效果就是「全停了」，剩下的空进程由系统回收。
+     */
+    private fun doStop() {
+        val msg = WatchService.instance?.shutdown() ?: "无障碍服务本来就没在跑"
+        toast(msg)
+        finishAndRemoveTask()
     }
 
     private fun startButton() {

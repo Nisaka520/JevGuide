@@ -111,6 +111,29 @@ class WatchService : AccessibilityService() {
         }
     }
 
+    /**
+     * 关闭：收起浮条、撤掉常驻通知、把自己从系统里注销（disableSelf）。
+     *
+     * 为什么是 disableSelf 而不是「杀进程」：Android 不允许 App 杀自己的进程（那是系统的事），
+     * 而且杀进程也关不掉无障碍服务 —— 服务由系统托管，只有 disableSelf() 能停掉它。
+     * 代价是系统设置里的勾会一起取消，下次要用必须重新点一次「启动」去授权，
+     * 这条流程已经在首页的「启动」里做好了（没授权就跳系统设置）。
+     */
+    fun shutdown(): String {
+        var msg = "已关闭"
+        try {
+            ScoreOverlay.hide()
+            cancelNotification()
+            disableSelf()
+            msg = "已关闭：浮条与通知都收起来了，无障碍服务也注销了"
+            AppLog.add("已关闭：浮条收起、通知撤掉、无障碍服务已注销")
+        } catch (t: Throwable) {
+            msg = "关闭时出错：" + t.javaClass.simpleName
+            AppLog.add("关闭失败：" + t.javaClass.simpleName + " " + (t.message ?: ""))
+        }
+        return msg
+    }
+
     fun syncButton() {
         val want = Config(this).a11yButtonEnabled
         try {
