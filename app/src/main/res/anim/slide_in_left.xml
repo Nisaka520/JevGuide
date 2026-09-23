@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Forward: the new page comes in from the right edge (full width), fading in. -->
+<!-- Back: the page underneath returns from -30%p, exactly where slide_out_left left it. -->
 <set xmlns:android="http://schemas.android.com/apk/res/android">
     <translate
         android:duration="420"
-        android:fromXDelta="100%p"
+        android:fromXDelta="-30%p"
         android:interpolator="@android:interpolator/decelerate_quint"
         android:toXDelta="0" />
     <alpha
         android:duration="420"
-        android:fromAlpha="0.0"
+        android:fromAlpha="0.9"
         android:interpolator="@android:interpolator/decelerate_quint"
         android:toAlpha="1.0" />
 </set>

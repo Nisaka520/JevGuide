@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The page being covered slides out to the left a little (not all the way) so it reads as a layer, not a swap. -->
+<!-- Forward: the covered page drifts left a third of the screen and dims slightly (parallax, not a full push). -->
 <set xmlns:android="http://schemas.android.com/apk/res/android">
     <translate
-        android:duration="260"
+        android:duration="420"
         android:fromXDelta="0"
         android:interpolator="@android:interpolator/decelerate_quint"
-        android:toXDelta="-8%p" />
+        android:toXDelta="-30%p" />
     <alpha
-        android:duration="260"
+        android:duration="420"
         android:fromAlpha="1.0"
         android:interpolator="@android:interpolator/decelerate_quint"
-        android:toAlpha="0.0" />
+        android:toAlpha="0.9" />
 </set>

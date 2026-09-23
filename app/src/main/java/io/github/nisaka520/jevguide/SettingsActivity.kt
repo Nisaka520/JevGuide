@@ -94,7 +94,7 @@ class SettingsActivity : AppCompatActivity() {
     override fun finish() {
         super.finish()
         @Suppress("DEPRECATION")
-        overridePendingTransition(android.R.anim.slide_in_left, android.R.anim.slide_out_right)
+        overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
     }
 
     override fun onStart() {
