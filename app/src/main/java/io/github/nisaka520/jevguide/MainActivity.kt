@@ -1,4 +1,4 @@
-package io.github.nisaka520.jevguide
+﻿package io.github.nisaka520.jevguide
 
 import android.Manifest
 import android.content.ComponentName
@@ -62,8 +62,12 @@ class MainActivity : AppCompatActivity() {
         startButton()
 
         row(
-            "设定无障碍和启动", "开无障碍服务、选读取方式（无障碍树／截图识别）、悬浮条开关",
+            "设定无障碍和启动", "开无障碍服务、选读取方式（无障碍树／截图识别）、抓屏诊断",
             "a11y", 0xFF6FD3C7.toInt()
+        )
+        row(
+            "浮条设置", "常驻浮条的开关、位置与显示内容；点启动后它会当场出现在屏幕上",
+            "overlay", 0xFF7EE0A8.toInt()
         )
         row(
             "模型密钥配置", "填 Jev 密钥（必填）与聊天模型（生成 3 条候选文案用）",
