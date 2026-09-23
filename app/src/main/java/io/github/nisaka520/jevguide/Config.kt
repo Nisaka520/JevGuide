@@ -225,7 +225,7 @@ class Config(ctx: Context) {
 
     /** 上次选的厂商 id（[Providers.ALL] 里的那个） */
     var providerId: String
-        get() = sp.getString("provider_id", "deepseek").orEmpty().ifEmpty { "deepseek" }
+        get() = sp.getString("provider_id", "zhipu").orEmpty().ifEmpty { "zhipu" }
         set(v) = sp.edit().putString("provider_id", v).apply()
 
     /**

@@ -1,4 +1,4 @@
-package io.github.nisaka520.jevguide
+﻿package io.github.nisaka520.jevguide
 
 /**
  * 内置模型厂商预设。
@@ -132,8 +132,18 @@ object Providers {
     /** 按 id 找；找不到给自定义（配置里存的是 id，预设删了也不能崩） */
     fun byId(id: String): Provider = ALL.firstOrNull { it.id == id } ?: CUSTOM
 
+    /**
+     * 下拉框里能选的厂商：只留「有读图模型」的 + 自定义。
+     *
+     * 视觉读屏（截图 → 文字）是本 App 的核心路径，列表里混进不支持看图的厂商
+     * （比如 DeepSeek 官方至今没有读图模型），用户选完才发现读不了图，只能再回来换一家。
+     * 所以直接不列（用户要求：只保留有视觉模型的几家，其他如 DeepSeek 直接不要）。
+     * 注意 byId 仍然查 ALL：老配置里存着 deepseek 也不能崩，只是下拉框里不再出现。
+     */
+    val PICKABLE: List<Provider> = ALL.filter { it.supportsVision || it.id == CUSTOM.id }
+
     /** 名字里带上"支持看图"，选择时不用去猜 */
-    fun labels(): List<String> = ALL.map { p ->
+    fun labels(): List<String> = PICKABLE.map { p ->
         when {
             p === CUSTOM -> p.name
             p.supportsVision -> p.name
@@ -141,7 +151,7 @@ object Providers {
         }
     }
 
-    fun indexOf(id: String): Int = ALL.indexOfFirst { it.id == id }.coerceAtLeast(0)
+    fun indexOf(id: String): Int = PICKABLE.indexOfFirst { it.id == id }.coerceAtLeast(0)
 
     /**
      * 选中的这一项跟已存的一致吗？
@@ -152,7 +162,7 @@ object Providers {
      * 抽成纯函数是为了能单测 —— 这类死循环 bug 靠手点很难稳定复现。
      */
     fun isSameAs(currentId: String, index: Int): Boolean =
-        ALL.getOrElse(index) { CUSTOM }.id == currentId
+        PICKABLE.getOrElse(index) { CUSTOM }.id == currentId
 
     /**
      * 从已保存的地址反推是哪一家（认不出来返回 null）。

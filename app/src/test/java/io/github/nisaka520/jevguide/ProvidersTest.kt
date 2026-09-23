@@ -1,4 +1,4 @@
-package io.github.nisaka520.jevguide
+﻿package io.github.nisaka520.jevguide
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -64,13 +64,22 @@ class ProvidersTest {
     }
 
     @Test
-    fun labelsMarkTheOnesWithoutVision() {
+    fun pickListOnlyOffersVisionCapableProviders() {
+        // 下拉框只列「有读图模型」的厂商 + 自定义。视觉读屏是本 App 的核心路径，
+        // 列一个选完读不了图的厂商等于给用户挖坑（用户要求：如 DeepSeek 直接不要）。
+        // 这条测试原来断言的是「不支持看图的要标注」，现在那些厂商根本不进列表，断言跟着改。
         val labels = Providers.labels()
-        assertEquals(Providers.ALL.size, labels.size)
-        val ds = labels[Providers.indexOf("deepseek")]
-        assertTrue("不支持看图的要标出来：$ds", ds.contains("不支持看图"))
-        val zhipu = labels[Providers.indexOf("zhipu")]
-        assertFalse("支持看图的不该带这个标记：$zhipu", zhipu.contains("不支持看图"))
+        assertEquals(
+            "列表 = 支持看图的 + 自定义",
+            Providers.ALL.count { it.supportsVision || it.id == "custom" },
+            labels.size
+        )
+        assertFalse("不支持看图的厂商不该出现在下拉框里", labels.any { it.contains("不支持看图") })
+        assertFalse("DeepSeek 没有读图模型，不该出现在列表里", labels.any { it.startsWith("DeepSeek") })
+        assertTrue("至少要留几家能看图的，不然视觉读屏没地方配", labels.size >= 3)
+        // 但 byId 必须还能查到老配置里存的 id（只是不再出现在下拉框里）—— 删预设不能让老用户崩
+        assertEquals("deepseek", Providers.byId("deepseek").id)
+        assertFalse(Providers.byId("deepseek").supportsVision)
     }
 
     @Test
@@ -116,13 +125,15 @@ class ProvidersTest {
      */
     @Test
     fun sameSelectionIsDetectedSoTheUiWontRebuildInALoop() {
-        // 进页面时补发的那次回调：下标对应的就是已存的 id → 必须判为"没变"
-        Providers.ALL.forEachIndexed { i, p ->
+        // 进页面时补发的那次回调：下标对应的就是已存的 id → 必须判为"没变"。
+        // 注意遍历的是 PICKABLE（下拉框真正显示的那一份），不是 ALL ——
+        // isSameAs 判的是「下拉框下标」，拿全表下标去对必然错位。
+        Providers.PICKABLE.forEachIndexed { i, p ->
             assertTrue("下标 $i（${p.id}）应判为没变", Providers.isSameAs(p.id, i))
         }
         // 用户真的换了另一家 → 判为"变了"，这时候才允许套用预设并重建界面
-        val deepseekIdx = Providers.indexOf("deepseek")
-        assertFalse(Providers.isSameAs("zhipu", deepseekIdx))
+        val zhipuIdx = Providers.indexOf("zhipu")
+        assertFalse(Providers.isSameAs("kimi", zhipuIdx))
         // 兜底：越界下标不许抛异常（预设表将来增删时的保险）
         assertFalse(Providers.isSameAs("deepseek", 999))
         assertFalse(Providers.isSameAs("deepseek", -1))

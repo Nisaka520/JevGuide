@@ -233,7 +233,7 @@ class SettingsActivity : AppCompatActivity() {
         section("聊天模型（生成候选回复文案）", "key", 0xFF7FB3FF.toInt())
         sub(
             "判读由 Jev 负责；回复文案由这个通用聊天模型生成（任何 OpenAI 兼容端点都行）。\n" +
-                "地址填到 /v1 为止，例如：https://api.deepseek.com/v1 ｜ https://api.openai.com/v1 ｜ 你自己的中转站。\n" +
+                "地址填到 /v1 为止，例如：http://ABC.com/v1 ｜ 你自己的中转站也行。\n" +
                 "它的密钥跟 Jev 的密钥是两回事，也只存在本机。"
         )
 
@@ -288,7 +288,7 @@ class SettingsActivity : AppCompatActivity() {
             )
         }
 
-        val chatBase = edit(cfg.chatBaseUrl, "https://api.deepseek.com/v1")
+        val chatBase = edit(cfg.chatBaseUrl, "http://ABC.com/v1")
         val chatKey = edit(cfg.chatApiKey, "sk-…（只存在本机）", password = true)
         val chatModel = edit(cfg.chatModel, "deepseek-chat")
         button("保存聊天模型配置") {
@@ -365,6 +365,13 @@ class SettingsActivity : AppCompatActivity() {
             }
             body(sb.toString())
         }
+        // 用户要的是「能复制的目录」：路径放在可选中复制的 body 里，而不是只给个按钮。
+        body(
+            "记忆存放目录（可长按选中复制）：\n" +
+                java.io.File(getExternalFilesDir(null), "memory").absolutePath + "\n" +
+                "原始数据在应用私有目录 filesDir/memory/，第三方文件管理器进不去，" +
+                "所以先点下面的按钮复制一份出来，再用文件管理器打开上面这个目录。"
+        )
         button("导出记忆文件（复制一份出来，用文件管理器看）", filled = true) {
             val n = exportMemories()
             if (n < 0) toast("导出失败，看下面的日志", true) else toast("已导出 " + n + " 个文件")
@@ -388,7 +395,7 @@ class SettingsActivity : AppCompatActivity() {
             "读取方式", listOf("自动（先无障碍，读空转视觉）", "只用无障碍树", "只用视觉读屏"),
             listOf("auto", "a11y", "vision").indexOf(cfg.readMode).coerceAtLeast(0)
         ) { cfg.readMode = listOf("auto", "a11y", "vision")[it] }
-        val vBase = edit(cfg.visionBaseUrl, "留空＝跟聊天模型共用（当前 ${cfg.chatBaseUrl}）")
+        val vBase = edit(cfg.visionBaseUrl, "http://ABC.com/v1（留空＝跟聊天模型共用）")
         val vKey = edit(cfg.visionApiKey, "留空＝跟聊天模型共用", password = true)
         val vModel = edit(cfg.visionModel, "留空＝跟聊天模型共用（当前 ${cfg.chatModel}）")
         button("保存视觉读屏配置") {
