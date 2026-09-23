@@ -951,16 +951,11 @@ class SettingsActivity : AppCompatActivity() {
                 if (titles.size == picked.size) "" else "（风格不够条数时会轮着用）"
         }
 
-        // 上限/下限都在这里当场提示，而不是默默改掉用户的选择 —— 静默修正最难排查
+        // 判定抽到 StylePick（纯函数、有单测）：上限/下限都**当场提示**，绝不静默改用户的选择
         val toggle: (String) -> Unit = { name ->
-            val picked = cfg.styles().toMutableList()
-            if (name in picked) {
-                if (picked.size <= 1) toast("至少要留一套风格")
-                else { picked.remove(name); commitStyles(picked, paint) }
-            } else {
-                if (picked.size >= ReplyPrompt.MAX_PICK) {
-                    toast("最多同时选 " + ReplyPrompt.MAX_PICK + " 套：先点掉一套再选新的")
-                } else { picked.add(name); commitStyles(picked, paint) }
+            when (val r = StylePick.toggle(cfg.styles(), name)) {
+                is StylePick.Refused -> toast(r.reason)
+                is StylePick.Changed -> commitStyles(r.picked, paint)
             }
         }
 
