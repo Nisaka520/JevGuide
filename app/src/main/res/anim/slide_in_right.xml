@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Forward transition: the new page slides in from the right while fading in.
+  The framework only ships slide_in_left / slide_out_right (that pair is "back"),
+  so the "deeper" direction has to be written here.
+-->
+<set xmlns:android="http://schemas.android.com/apk/res/android">
+    <translate
+        android:duration="260"
+        android:fromXDelta="14%p"
+        android:interpolator="@android:interpolator/decelerate_quint"
+        android:toXDelta="0" />
+    <alpha
+        android:duration="200"
+        android:fromAlpha="0.0"
+        android:interpolator="@android:interpolator/decelerate_quint"
+        android:toAlpha="1.0" />
+</set>

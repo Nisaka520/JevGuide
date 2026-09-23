@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The page being covered slides out to the left a little (not all the way) so it reads as a layer, not a swap. -->
+<set xmlns:android="http://schemas.android.com/apk/res/android">
+    <translate
+        android:duration="260"
+        android:fromXDelta="0"
+        android:interpolator="@android:interpolator/decelerate_quint"
+        android:toXDelta="-8%p" />
+    <alpha
+        android:duration="260"
+        android:fromAlpha="1.0"
+        android:interpolator="@android:interpolator/decelerate_quint"
+        android:toAlpha="0.0" />
+</set>

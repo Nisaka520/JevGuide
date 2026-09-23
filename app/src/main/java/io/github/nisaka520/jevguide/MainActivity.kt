@@ -203,6 +203,18 @@ class MainActivity : AppCompatActivity() {
 
     private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
 
+    /**
+     * 进二级页的转场：右边滑入 + 旧的淡出。
+     *
+     * 不这么做的话点卡片是「啪」地整页换掉，观感像卡了一下、也看不出层级关系；
+     * 有方向感的滑动能直接告诉用户「你进到更深一层了」，返回时反向滑回来。
+     * 用系统自带的 android.R.anim.*，不新增任何资源文件。
+     */
+    @Suppress("DEPRECATION")
+    private fun forwardTransition() = overridePendingTransition(
+        R.anim.slide_in_right, R.anim.slide_out_left
+    )
+
     /** 一行入口：左边一个色点（分区色），中间标题+说明，右边一个 › */
     private fun row(title: String, sub: String, section: String, accent: Int) {
         val dot = View(this).apply {
@@ -257,6 +269,7 @@ class MainActivity : AppCompatActivity() {
                 startActivity(
                     Intent(this@MainActivity, SettingsActivity::class.java).putExtra("screen", section)
                 )
+                forwardTransition()
             }
         }
         page.addView(card, LinearLayout.LayoutParams(

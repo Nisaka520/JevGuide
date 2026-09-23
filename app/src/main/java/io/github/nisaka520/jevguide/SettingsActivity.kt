@@ -86,6 +86,17 @@ class SettingsActivity : AppCompatActivity() {
      * 实测截图里它正好盖住「Jev攻略」，视觉模型第一眼就把它标成了 bug。
      * 跟结果页的处理保持一致：进自己的界面就收，回微信自动回来。
      */
+    /**
+     * 返回时反向滑出，跟首页进去的动画对上。
+     * 放在 finish() 里而不是按钮回调里：系统返回键、手势返回、页面上的「← 返回首页」
+     * 三条路都会走 finish()，改一处就全覆盖。
+     */
+    override fun finish() {
+        super.finish()
+        @Suppress("DEPRECATION")
+        overridePendingTransition(android.R.anim.slide_in_left, android.R.anim.slide_out_right)
+    }
+
     override fun onStart() {
         super.onStart()
         ScoreOverlay.setSuppressed(cfg, true)
