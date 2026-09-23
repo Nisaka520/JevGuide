@@ -1,4 +1,4 @@
-package io.github.nisaka520.jevguide
+﻿package io.github.nisaka520.jevguide
 
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -203,6 +203,15 @@ class ResultActivity : AppCompatActivity() {
             setPadding(dp(28), paddingTop, dp(28), paddingBottom)
         })
         root.addView(row)
+
+        // 底部：随机一句与爱有关的古诗。纯文字，**不设点击监听**，点它不跳转（用户要求）。
+        root.addView(
+            text(Poems.random(), 12.5f, cOnSurfaceVariant, bold = false).apply { alpha = 0.85f },
+            matchWrap(top = 18, bottom = 4)
+        )
+
+        // 关闭：结果页最多就这一个按钮（用户要求）
+        root.addView(btn("关闭", filled = true) { finish() }, matchWrap(top = 6, bottom = 10))
 
         statusLine.text = buildString {
             append("Jev + 文案耗时 ").append(cost).append("ms")
