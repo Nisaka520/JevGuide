@@ -53,7 +53,26 @@ object ScoreOverlay {
     @Volatile
     var lastPayload: ResultPayload? = null
 
+    /** 结果页打开期间压制浮条：屏幕上只留一个浮窗，不叠着显示 */
+    @Volatile
+    private var suppressed = false
+
     fun isShowing(): Boolean = view != null
+
+    /**
+     * 结果页进出时调用：进去就收起来，出来再按上次的文字恢复。
+     * 从 [WatchService.instance] 拿服务（结果页自己不是无障碍服务）。
+     */
+    fun setSuppressed(cfg: Config, on: Boolean) {
+        suppressed = on
+        if (on) {
+            hide()
+        } else {
+            val svc = WatchService.instance ?: return
+            val t = cfg.lastOverlayText.ifEmpty { format("微信", null, null) }
+            show(svc, cfg, t, cfg.lastOverlayPercent.takeIf { it >= 0 })
+        }
+    }
 
     /** 纯逻辑：浮层上写什么。抽出来是为了能单测（不碰 Android） */
     fun format(title: String, percent: Int?, trend: Int?): String {
@@ -78,7 +97,7 @@ object ScoreOverlay {
 
     /** 显示或更新（已经在就只改文字与颜色） */
     fun show(service: AccessibilityService, cfg: Config, text: String, percent: Int?) {
-        if (!cfg.overlayEnabled) return
+        if (!cfg.overlayEnabled || suppressed) return
         // 判读跑在后台线程，而 addView/updateViewLayout 需要主线程的 Looper —— 统一在这里切
         if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
             main.post { show(service, cfg, text, percent) }

@@ -235,6 +235,31 @@ class ResultActivity : Activity() {
         }, "jevguide-regen").start()
     }
 
+    /**
+     * 结果页是 `singleInstance`：判读多次只复用这一个窗口，不会再叠成好几层
+     * （之前每判读一次就新起一个对话框，屏幕上会同时挂着好几个 —— 用户反馈"怎么有两个浮窗"）。
+     */
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        intent ?: return
+        setIntent(intent)
+        recreate()          // 用新内容重建一次，比手动刷新每个控件可靠
+    }
+
+    /**
+     * 结果页开着的时候把浮条收起来：一次只给用户一个浮窗，别让攻略度和结果页叠在一起。
+     * 切回微信（onStop）时浮条自己回来，方便一边看文案一边粘贴。
+     */
+    override fun onStart() {
+        super.onStart()
+        ScoreOverlay.setSuppressed(Config(this), true)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        ScoreOverlay.setSuppressed(Config(this), false)
+    }
+
     private fun copy(label: String, text: String) {
         try {
             val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager

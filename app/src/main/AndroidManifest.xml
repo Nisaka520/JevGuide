@@ -24,12 +24,19 @@
             </intent-filter>
         </activity>
 
-        <!-- 结果页：浮在微信上面的一层（攻略度 + 候选文案），关掉就回聊天 -->
+        <!--
+          结果页：浮在微信上面的一层（攻略度 + 候选文案），关掉就回聊天。
+
+          launchMode 必须是 singleInstance：判读可以连着来好几次，而结果页是对话框样式，
+          singleTop 在"服务用 NEW_TASK 拉起"这条路径上挡不住叠加 —— 实测屏幕上会同时挂着
+          4 个 ResultActivity 窗口（用户反馈"怎么有两个浮窗"）。singleInstance 全系统只有一个实例，
+          新的一次判读走 onNewIntent 复用同一个窗口。
+        -->
         <activity
             android:name=".ResultActivity"
             android:exported="false"
             android:excludeFromRecents="true"
-            android:launchMode="singleTop"
+            android:launchMode="singleInstance"
             android:theme="@android:style/Theme.DeviceDefault.Dialog" />
 
         <!-- 无障碍服务：只订阅微信 -->
