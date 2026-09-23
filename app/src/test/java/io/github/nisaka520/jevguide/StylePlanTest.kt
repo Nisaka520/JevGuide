@@ -78,6 +78,20 @@ class StylePlanTest {
         assertTrue("英文路径也要禁止自创标题", s.contains("never invent"))
     }
 
+    /**
+     * 上限「同时只能选三套」不能只靠界面拦：配置是纯文本，旧版本或手改都可能塞进来五套。
+     * 这里钉的是最后一层 —— 就算真塞进来五套，提示词里也只能出现三套。
+     */
+    @Test
+    fun atMostThreeStylesReachThePrompt() {
+        assertEquals(3, ReplyPrompt.MAX_PICK)
+        val five = listOf("稳妥", "推进", "有趣", "撒娇", "冷淡")
+        assertEquals(listOf("稳妥", "推进", "有趣"), ReplyPrompt.planTitles(five, 0))
+        val s = ReplyPrompt.buildSystem("（暂无记忆）", "zh", "", five, 3)
+        assertTrue("提示词里不该出现被截掉的风格", !s.contains("【撒娇】"))
+        assertTrue("条数仍按 draftsN 说", s.contains("只输出 3 段"))
+    }
+
     // ---------- 解析器：自创标题不能漏进正文 ----------
 
     @Test

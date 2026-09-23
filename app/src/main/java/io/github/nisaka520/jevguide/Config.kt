@@ -116,12 +116,14 @@ class Config(ctx: Context) {
         set(v) = sp.edit().putString("styles_csv", v).apply()
 
     /**
-     * 解析成风格列表：逗号（中英文都认）分隔、去空白、丢不认识的名字、去重。
+     * 解析成风格列表：逗号（中英文都认）分隔、去空白、丢不认识的名字、去重、最多取三套。
      * 全空或全是不认识的名字 → 回落默认三种，**保证永远至少有一种可用**。
      */
     fun styles(): List<String> {
         val known = ReplyPrompt.ALL_STYLE_TITLES
         val picked = stylesCsv.split(',', '，', '、', ' ').map { it.trim() }.filter { it in known }.distinct()
+            // 上限在这里也要拦一道：配置是纯文本，界面拦不住的（旧版本/手改）这里兜住
+            .take(ReplyPrompt.MAX_PICK)
         return picked.ifEmpty { ReplyPrompt.STYLE_TITLES }
     }
 

@@ -39,6 +39,14 @@ object ReplyPrompt {
     val ALL_STYLE_TITLES = listOf("稳妥", "推进", "有趣", "撒娇", "冷淡", "正经", "长辈")
 
     /**
+     * 最多同时选几套（用户要求：方案多给几个，但同时只能用三套）。
+     *
+     * 三处都按它收敛，而不是只靠界面拦：配置是纯文本（旧版本、手改都可能塞进来 5 套），
+     * 界面能拦住的只是「正常人不会干的事」。
+     */
+    const val MAX_PICK = 3
+
+    /**
      * 每种风格的一句话说明（设置页展示 + 拼进提示词，保证两处口径一致）。
      *
      * 写法要求：必须**可执行**。「接住对方」「不冒险」这种抽象词模型理解不了，
@@ -116,6 +124,7 @@ object ReplyPrompt {
         // 选中的风格必须先过一遍白名单：配置里可能留着旧名字或错别字，
         // 直接拼进提示词会让模型去写一个不存在的风格。全空则回落默认，保证至少有一种。
         val picked = styles.map { it.trim() }.filter { it in ALL_STYLE_TITLES }.distinct()
+            .take(MAX_PICK)
             .ifEmpty { STYLE_TITLES }
         // 条数与标题必须和 user 提示词里的「输出 N 段」来自同一个来源，否则两句直接打架
         val titles = planTitles(picked, count)
@@ -140,7 +149,8 @@ object ReplyPrompt {
      * @param count 要几条候选；<= 0 表示「有几套风格就出几条」（老行为）
      */
     fun planTitles(styles: List<String>, count: Int): List<String> {
-        val s = styles.map { it.trim() }.filter { it in ALL_STYLE_TITLES }.distinct().ifEmpty { STYLE_TITLES }
+        val s = styles.map { it.trim() }.filter { it in ALL_STYLE_TITLES }.distinct()
+            .take(MAX_PICK).ifEmpty { STYLE_TITLES }
         val n = if (count <= 0) s.size else count
         return List(n) { s[it % s.size] }
     }

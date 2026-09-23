@@ -1,4 +1,4 @@
-﻿package io.github.nisaka520.jevguide
+package io.github.nisaka520.jevguide
 
 import android.Manifest
 import android.content.Intent
@@ -39,6 +39,12 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var statusText: TextView
     private lateinit var lastText: TextView
     private lateinit var logText: TextView
+
+    /** 风格选择器的重画入口：「生成几条候选」改了，下面那行说明也得跟着变 */
+    private var repaintStyles: () -> Unit = {}
+
+    /** 高级设置里那段完整提示词预览；点风格时同步改，做到「点一下就看到提示词变了」 */
+    private var promptPreview: TextView? = null
 
     /** 每个分区标题在 page 里的下标 → 它属于哪一屏。首页进来时按这个把别屏的分区删掉 */
     private val sectionRuns = ArrayList<Pair<Int, String>>()
@@ -331,7 +337,14 @@ class SettingsActivity : AppCompatActivity() {
         spinner(
             "生成几条候选", listOf("1", "2", "3", "4", "5"),
             listOf(1, 2, 3, 4, 5).indexOf(cfg.draftsN).coerceAtLeast(0)
-        ) { cfg.draftsN = listOf(1, 2, 3, 4, 5)[it] }
+        ) { cfg.draftsN = listOf(1, 2, 3, 4, 5)[it]; repaintStyles() }
+
+        // 回复风格：7 套里最多同时选三套，点一下立刻生效（不设「保存」按钮）
+        sub(
+            "回复风格：默认三套（稳妥、推进、有趣），另外四套可以换进来。\n" +
+                "最多同时选三套 —— 每套风格对应一条候选文案的语气。点一下立刻生效、也立刻写进提示词，没有保存按钮。"
+        )
+        repaintStyles = stylePicker()
 
         // 攻略度与记忆
         section("攻略度与记忆", "memory")
@@ -340,18 +353,6 @@ class SettingsActivity : AppCompatActivity() {
                 "记忆：每个联系人一份，只存在本机 filesDir/memory/ 下；攒够若干条新对话后自动刷新摘要与关键事实。\n" +
                 "记忆会作为「背景」一起交给 Jev 和聊天模型 —— 关掉它，每次分析都等于第一次聊。"
         )
-        val styleBox = edit(cfg.stylesCsv, "稳妥,推进,有趣")
-        body(
-            "要哪几种风格（逗号分隔，最多 5 种）。可选：" +
-                ReplyPrompt.ALL_STYLE_TITLES.joinToString("、") +
-                "\n判读时会按这里列出的风格各出一条，所以填几种就多几段输出、也多花一点时间。"
-        )
-        button("保存风格选择") {
-            val want = styleBox.text.toString().trim()
-            cfg.stylesCsv = want
-            val got = cfg.styles()
-            toast("已保存：" + got.joinToString("、") + if (got.size != want.split(',', '，', '、').count { it.isNotBlank() }) "（有不认识的名字被忽略了）" else "")
-        }
         switchRow("问 Jev 要「攻略度」评分", cfg.guideEnabled) { cfg.guideEnabled = it }
         switchRow("启用本地记忆", cfg.memoryEnabled) { cfg.memoryEnabled = it }
         spinner(
@@ -539,21 +540,23 @@ class SettingsActivity : AppCompatActivity() {
         // ── 高级设置（首页第七个入口）──
         section("高级设置（给聊天模型加要求）", "adv", 0xFF7FB3FF.toInt())
         sub(
-            "下面写的话会作为「额外要求」**追加**到聊天模型的 system 提示词末尾。\n" +
+            "下面写的话会作为「额外要求」追加到聊天模型的 system 提示词末尾。\n" +
                 "只加不改：输出格式（三段 + 标题行 + --- 分隔）与硬性约束由程序保证，" +
                 "改了那部分解析就切不出三段了。"
         )
         val extraBox = edit(cfg.promptExtra, "额外要求（留空 = 不加）", multiline = true)
         button("保存额外要求", filled = true) {
             cfg.promptExtra = extraBox.text.toString().trim()
+            refreshPromptPreview()   // 预览就在下面，不跟着改会让人以为没保存上
             android.widget.Toast.makeText(this, "已保存，下次生成文案生效", android.widget.Toast.LENGTH_SHORT).show()
         }
         button("清空（恢复默认）") {
             extraBox.setText("")
             cfg.promptExtra = ""
+            refreshPromptPreview()
             android.widget.Toast.makeText(this, "已清空", android.widget.Toast.LENGTH_SHORT).show()
         }
-        body(
+        promptPreview = body(
             "当前发给聊天模型的完整提示词（只读；上面填的额外要求会接在最后）：\n\n" +
                 ReplyPrompt.buildSystem("（暂无记忆）", cfg.lang, cfg.promptExtra, cfg.styles(), cfg.draftsN)
         )
@@ -706,6 +709,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private val cPrimary: Int get() = attr(com.google.android.material.R.attr.colorPrimary)
+    private val cOnPrimary: Int get() = attr(com.google.android.material.R.attr.colorOnPrimary)
     private val cOnSurface: Int get() = attr(com.google.android.material.R.attr.colorOnSurface)
     private val cOnSurfaceVariant: Int get() = attr(com.google.android.material.R.attr.colorOnSurfaceVariant)
     private val cContainerHigh: Int get() = attr(com.google.android.material.R.attr.colorSurfaceContainerHigh)
@@ -757,12 +761,31 @@ class SettingsActivity : AppCompatActivity() {
     )
 
     private fun sub(t: String) = page.addView(TextView(this).apply {
-        text = t
+        text = emphasis(t)
         setTextColor(cOnSurfaceVariant)
         setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
         setLineSpacing(dp(4).toFloat(), 1f)
         setPadding(dp(2), dp(2), dp(2), dp(8))
     })
+
+    /**
+     * 说明文字里的 `**强调**` 变成**真的加粗**。
+     *
+     * TextView 不认 markdown，原来那些星号是原样显示给用户看的（实测截图里满屏 `**`）。
+     * 解析放在 [Emphasis]（纯函数、有单测），这里只负责套 StyleSpan。
+     */
+    private fun emphasis(t: String): CharSequence {
+        val (plain, bolds) = Emphasis.parse(t)
+        if (bolds.isEmpty()) return plain
+        return android.text.SpannableString(plain).apply {
+            for (r in bolds) {
+                setSpan(
+                    android.text.style.StyleSpan(android.graphics.Typeface.BOLD),
+                    r.first, r.last + 1, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+            }
+        }
+    }
 
     private fun body(t: String) = TextView(this).apply {
         text = t
@@ -895,6 +918,102 @@ class SettingsActivity : AppCompatActivity() {
     private fun margins(): LinearLayout.LayoutParams = LinearLayout.LayoutParams(
         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
     ).apply { topMargin = dp(8) }
+
+    /**
+     * 风格选择器：7 套里**最多同时选三套**，点一下立刻写盘（没有「保存」按钮）。
+     *
+     * 为什么不再用输入框：原来那是个「逗号分隔 + 保存」的框，用户实测**直接找不到它**
+     * （它还被我放错在「攻略度与记忆」分区里），而且填错名字、忘了点保存都会让人以为功能坏了。
+     * 现在一次点击就是一个状态：选中=实心主色，未选=卡片色，下面一行实时说明会出几条。
+     *
+     * @return 重画闭包 —— 「生成几条候选」改了以后，那行说明也得跟着变
+     */
+    private fun stylePicker(): () -> Unit {
+        val chips = LinkedHashMap<String, TextView>()
+        val live = TextView(this).apply {
+            setTextColor(cOnSurfaceVariant)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
+            setLineSpacing(dp(3).toFloat(), 1f)
+            setPadding(dp(2), dp(6), dp(2), dp(2))
+        }
+
+        val paint: () -> Unit = {
+            val picked = cfg.styles()
+            for ((name, v) in chips) {
+                val on = name in picked
+                v.text = if (on) "✓ " + name else name
+                v.background = chipBg(on)
+                v.setTextColor(if (on) cOnPrimary else cOnSurface)
+            }
+            val titles = ReplyPrompt.planTitles(picked, cfg.draftsN)
+            live.text = "当前：" + picked.joinToString("、") + "（最多 " + ReplyPrompt.MAX_PICK + " 套）\n" +
+                "会出 " + titles.size + " 条：" + titles.joinToString("、") +
+                if (titles.size == picked.size) "" else "（风格不够条数时会轮着用）"
+        }
+
+        // 上限/下限都在这里当场提示，而不是默默改掉用户的选择 —— 静默修正最难排查
+        val toggle: (String) -> Unit = { name ->
+            val picked = cfg.styles().toMutableList()
+            if (name in picked) {
+                if (picked.size <= 1) toast("至少要留一套风格")
+                else { picked.remove(name); commitStyles(picked, paint) }
+            } else {
+                if (picked.size >= ReplyPrompt.MAX_PICK) {
+                    toast("最多同时选 " + ReplyPrompt.MAX_PICK + " 套：先点掉一套再选新的")
+                } else { picked.add(name); commitStyles(picked, paint) }
+            }
+        }
+
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        // 7 套摆两行（4 + 3）。每行等宽 weight，最后一行补空 View，否则剩下三个会被拉宽
+        for (rowNames in ReplyPrompt.ALL_STYLE_TITLES.chunked(4)) {
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, dp(6), 0, 0)
+            }
+            for (name in rowNames) {
+                val v = TextView(this).apply {
+                    text = name
+                    gravity = Gravity.CENTER
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 13.5f)
+                    setPadding(dp(4), dp(11), dp(4), dp(11))
+                    isClickable = true
+                    setOnClickListener { toggle(name) }
+                }
+                chips[name] = v
+                row.addView(
+                    v,
+                    LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(6) }
+                )
+            }
+            repeat(4 - rowNames.size) {
+                row.addView(View(this), LinearLayout.LayoutParams(0, dp(1), 1f).apply { marginEnd = dp(6) })
+            }
+            box.addView(row)
+        }
+        page.addView(box, margins())
+        page.addView(live, margins())
+        paint()
+        return paint
+    }
+
+    /** 一次切换的收尾：写盘 + 重画 + 同步提示词预览。三件事必须一起做，少一件就「看起来没生效」 */
+    private fun commitStyles(picked: List<String>, paint: () -> Unit) {
+        cfg.stylesCsv = picked.joinToString(",")
+        paint()
+        refreshPromptPreview()
+    }
+
+    private fun chipBg(on: Boolean): GradientDrawable = GradientDrawable().apply {
+        setColor(if (on) cPrimary else cContainerHigh)
+        cornerRadius = dp(14).toFloat()
+    }
+
+    /** 提示词预览跟着改：用户要的「实时修改」最终就体现在这一段上 */
+    private fun refreshPromptPreview() {
+        promptPreview?.text = "当前发给聊天模型的完整提示词（只读；上面填的额外要求会接在最后）：\n\n" +
+            ReplyPrompt.buildSystem("（暂无记忆）", cfg.lang, cfg.promptExtra, cfg.styles(), cfg.draftsN)
+    }
 
     /**
      * 把 filesDir/memory 里的 json 复制到外部私有目录（不需要任何存储权限，文件管理器能翻），
