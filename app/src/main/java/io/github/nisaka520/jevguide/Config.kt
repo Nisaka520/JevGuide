@@ -256,9 +256,9 @@ class Config(ctx: Context) {
     fun clearAll() = sp.edit().clear().apply()
 
     companion object {
-        // 默认一家走通全程：智谱的 glm-4-flash（文本）与 glm-4v-flash（视觉）都有免费额度，
+        // 默认一家走通全程：智谱 glm-5.3（文本）+ glm-ocr（视觉，专做 OCR），新账号有赠送额度，
         // 一个密钥就够，用户不用先充钱。想换别家随时在设置里改。
         const val DEFAULT_CHAT_BASE = "https://open.bigmodel.cn/api/paas/v4"
-        const val DEFAULT_CHAT_MODEL = "glm-4-flash"
+        const val DEFAULT_CHAT_MODEL = "glm-5.3"
     }
 }
