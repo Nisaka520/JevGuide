@@ -26,7 +26,7 @@ object Analyzer {
     fun run(ctx: Context, digest: Digest, manual: Boolean = true) {
         val cfg = Config(ctx)
         if (!cfg.hasKey()) {
-            Toast3.toast(ctx, "还没填 Jev 接口密钥：打开「Jev攻略」设置 → 接口密钥", true)
+            Toast3.toast(ctx, "还没填 Jev 接口密钥：打开「弦外之音」设置 → 接口密钥", true)
             AppLog.add("未配置 Jev 密钥，已拒绝判读")
             return
         }
@@ -193,7 +193,7 @@ object Analyzer {
     private fun generateDrafts(cfg: Config, memBlock: String, lines: List<String>, state: String): List<Draft> = try {
         val r = ChatHttp.complete(
             cfg.chatBaseUrl, cfg.chatApiKey, cfg.chatModel,
-            ReplyPrompt.buildSystem(memBlock, cfg.lang, cfg.promptExtra, cfg.styles()),
+            ReplyPrompt.buildSystem(memBlock, cfg.lang, cfg.promptExtra, cfg.styles(), cfg.draftsN),
             ReplyPrompt.buildUser(lines, state, cfg.draftsN)
         )
         when (r) {
@@ -233,7 +233,7 @@ object Analyzer {
             )
             val n = android.app.Notification.Builder(ctx, "jevguide_result")
                 .setSmallIcon(android.R.drawable.ic_menu_info_details)
-                .setContentTitle("Jev攻略 · $title")
+                .setContentTitle("弦外之音 · $title")
                 .setContentText(lines.firstOrNull().orEmpty())
                 .setStyle(android.app.Notification.BigTextStyle().bigText(body))
                 .setContentIntent(open)

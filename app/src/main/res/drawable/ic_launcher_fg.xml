@@ -1,13 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  图标前景：一个**描边**的聊天气泡 + 里面一个向上的箭头（自绘矢量，非任何现成素材）。
+  图标前景：一个**实心蓝色**聊天气泡，里面用"挖空"的方式排三条选项（每行一个小圆点 + 一条横杠）。
 
   几何约束（最容易翻车的地方）：自适应图标的 viewport 是 108×108，但系统遮罩会裁掉四周，
-  真正保证可见的只有**中间 66×66**（即 21…87）。所以这里所有内容都收在 24…84 × 26…80 里，
-  比安全区再留一点余量 —— 各家 ROM 的圆角/方形遮罩半径不一样，贴边画必被切。
+  真正保证可见的只有**中间 66×66**（即 21…87）。所以气泡主体收在 24…84 × 26…72，
+  尾巴尖落在 (38,80)（到中心距离 30.5 < 33，仍在安全圆内）—— 各家 ROM 的圆角/方形遮罩半径
+  不一样，贴边画必被切。
 
-  为什么用描边而不是实心：单色层（monochrome）只能用一种颜色，实心气泡里就"挖"不出箭头；
-  描边气泡 + 实心箭头在任何单色渲染下都能看清结构。
+  为什么用"挖空"而不是"白杠叠在蓝底上"：
+    1. 单色层（monochrome，Android 13+ 主题图标）只认 alpha。白杠叠蓝底在单色渲染下
+       整块都是不透明 → 三条选项会**消失**；挖空之后 alpha 本身就带结构，主题图标也能看出是"三个选项"。
+    2. 挖空只有一个 path，不用维护"底色 + 三根杠"两套颜色关系。
+
+  轮廓是一条**连续闭合**的路径（气泡 + 尾巴一次画完，不是两个图形拼的）：
+  拼接会在接缝处留下抗锯齿的浅线，放大看很脏。
+  六条挖空子路径（3 个圆点 + 3 条横杠）都在气泡内部、互不相交，
+  配合 fillType="evenOdd" 正好挖穿。
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -15,28 +23,15 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- 气泡主体：圆角矩形 (24,26)-(84,70)，圆角 12 -->
+    <!-- 气泡：圆角矩形 (24,26)-(84,72) 圆角 12，左下带一个尖尾巴；再挖出三个选项 -->
     <path
-        android:pathData="M36,26 H72 A12,12 0 0 1 84,38 V58 A12,12 0 0 1 72,70 H36 A12,12 0 0 1 24,58 V38 A12,12 0 0 1 36,26 Z"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeLineJoin="round"
-        android:strokeWidth="5" />
-
-    <!-- 气泡尾巴：从底边往左下折一下（描边 + 圆角连接，看起来是连着的） -->
-    <path
-        android:pathData="M40,70 V80 L54,70"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:strokeWidth="5" />
-
-    <!-- 上升箭头：实心三角头 + 竖杆（= 攻略度在涨） -->
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M54,36 L62,46 L46,46 Z" />
-    <path
-        android:pathData="M54,46 V62"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeLineCap="round"
-        android:strokeWidth="5" />
+        android:fillColor="#FF2E6BE6"
+        android:fillType="evenOdd"
+        android:pathData="M36,26 H72 A12,12 0 0 1 84,38 V60 A12,12 0 0 1 72,72 H58 L38,80 L44,72 H36 A12,12 0 0 1 24,60 V38 A12,12 0 0 1 36,26 Z
+                          M40,35 A3,3 0 0 1 40,41 A3,3 0 0 1 40,35 Z
+                          M51,35 H71 A3,3 0 0 1 74,38 A3,3 0 0 1 71,41 H51 A3,3 0 0 1 48,38 A3,3 0 0 1 51,35 Z
+                          M40,46 A3,3 0 0 1 40,52 A3,3 0 0 1 40,46 Z
+                          M51,46 H71 A3,3 0 0 1 74,49 A3,3 0 0 1 71,52 H51 A3,3 0 0 1 48,49 A3,3 0 0 1 51,46 Z
+                          M40,57 A3,3 0 0 1 40,63 A3,3 0 0 1 40,57 Z
+                          M51,57 H71 A3,3 0 0 1 74,60 A3,3 0 0 1 71,63 H51 A3,3 0 0 1 48,60 A3,3 0 0 1 51,57 Z" />
 </vector>

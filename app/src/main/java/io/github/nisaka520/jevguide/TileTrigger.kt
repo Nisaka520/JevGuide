@@ -1,4 +1,4 @@
-package io.github.nisaka520.jevguide
+﻿package io.github.nisaka520.jevguide
 
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
@@ -22,7 +22,7 @@ class TileTrigger : TileService() {
         super.onClick()
         val svc = WatchService.instance
         if (svc == null) {
-            Toast3.toast(this, "先开启无障碍服务（设置 → 无障碍 → Jev攻略）", true)
+            Toast3.toast(this, "先开启无障碍服务（设置 → 无障碍 → 弦外之音）", true)
             return
         }
         svc.analyzeNow(true)

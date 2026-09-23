@@ -117,7 +117,7 @@ class SettingsActivity : AppCompatActivity() {
     // ────────────────────────── 页面
 
     private fun buildStatic() {
-        title("Jev攻略")
+        title("弦外之音")
         sub("长按不需要、悬浮窗不需要 —— 在微信里点一下，弹 3 条提示：意图/情绪、着急、建议。")
 
         // 状态
@@ -528,7 +528,7 @@ class SettingsActivity : AppCompatActivity() {
         // ── 关于（首页第五个入口指向这里）──
         section("关于本软件", "about")
         sub(
-            "Jev攻略 " + BuildConfig.VERSION_NAME + "\n" +
+            "弦外之音 " + BuildConfig.VERSION_NAME + "\n" +
                 "做什么：在微信里点一下浮条，读当前聊天 → 算出攻略度 → 生成 3 条候选回复。\n" +
                 "隐私：密钥、联系人表、记忆、日志全部只存在本机；没有云端、没有统计、没有任何埋点。\n" +
                 "联网只有两处：① 把当前聊天内容发给 Jev 算攻略度；② 发给**你自己配的**聊天模型生成文案。\n" +
@@ -555,7 +555,7 @@ class SettingsActivity : AppCompatActivity() {
         }
         body(
             "当前发给聊天模型的完整提示词（只读；上面填的额外要求会接在最后）：\n\n" +
-                ReplyPrompt.buildSystem("（暂无记忆）", cfg.lang, cfg.promptExtra, cfg.styles())
+                ReplyPrompt.buildSystem("（暂无记忆）", cfg.lang, cfg.promptExtra, cfg.styles(), cfg.draftsN)
         )
 
         section("维护", "about")
@@ -587,7 +587,7 @@ class SettingsActivity : AppCompatActivity() {
         try {
             val i = Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
-                putExtra(Intent.EXTRA_SUBJECT, "Jev攻略抓屏诊断")
+                putExtra(Intent.EXTRA_SUBJECT, "弦外之音抓屏诊断")
                 putExtra(Intent.EXTRA_TEXT, d)
             }
             startActivity(Intent.createChooser(i, "把诊断发给作者"))

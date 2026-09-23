@@ -277,7 +277,7 @@ class WatchService : AccessibilityService() {
             cfg.lastDumpPath = f.absolutePath
             val n = text.count { it == '\n' }
             AppLog.add("抓屏诊断已保存：${f.absolutePath}（$n 行）")
-            Toast3.toast(this, "诊断已保存（$n 行）·  回「Jev攻略」设置页点『分享最近诊断』", true)
+            Toast3.toast(this, "诊断已保存（$n 行）·  回「弦外之音」设置页点『分享最近诊断』", true)
         } catch (e: Exception) {
             AppLog.add("抓屏诊断失败：${e.message}")
             Toast3.toast(this, "诊断失败：" + e.message, true)
@@ -314,7 +314,7 @@ class WatchService : AccessibilityService() {
             val nm = getSystemService(NotificationManager::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val ch = NotificationChannel(CH_ID, "运行状态", NotificationManager.IMPORTANCE_MIN).apply {
-                    description = "Jev攻略运行时的常驻入口"
+                    description = "弦外之音运行时的常驻入口"
                     setShowBadge(false)
                 }
                 nm.createNotificationChannel(ch)
@@ -333,7 +333,7 @@ class WatchService : AccessibilityService() {
             )
             val n = Notification.Builder(this, CH_ID)
                 .setSmallIcon(R.drawable.ic_tile)
-                .setContentTitle("Jev攻略已就绪")
+                .setContentTitle("弦外之音已就绪")
                 .setContentText("在微信里点一下就判读当前消息")
                 .setOngoing(true)
                 .setShowWhen(false)

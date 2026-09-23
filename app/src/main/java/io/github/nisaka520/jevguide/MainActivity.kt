@@ -62,7 +62,7 @@ class MainActivity : AppCompatActivity() {
         }
         setContentView(scroll)
 
-        title("Jev攻略")
+        title("弦外之音")
         sub("点下面任一项进设置。判读本身不用打开这个 App —— 在微信里点浮条就行。")
 
         // 状态 + 启动直接放首页：这两个是「能不能用」的关键，不该藏在二级页里
@@ -205,7 +205,7 @@ class MainActivity : AppCompatActivity() {
     private fun doStart() {
         askNotification()
         if (WatchService.instance == null && !a11yEnabled()) {
-            toast("请在接下来弹出的系统设置里打开「Jev攻略」，然后回来再点一次启动")
+            toast("请在接下来弹出的系统设置里打开「弦外之音」，然后回来再点一次启动")
             try {
                 startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
             } catch (t: Throwable) {

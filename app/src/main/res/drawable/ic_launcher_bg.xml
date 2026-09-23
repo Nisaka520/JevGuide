@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  图标底色：深青 → 亮青的对角渐变。
+  图标底色：浅蓝 → 更浅的雾蓝对角渐变。
+
+  为什么底色要"浅"：前景是一个**实心蓝气泡**，气泡里那三条选项是挖空的，
+  挖空处露出来的就是这一层。底色浅，三条选项才看得清（底色要是也深蓝，
+  气泡和选项就糊成一块了）。
 
   为什么用 shape 而不是 vector：自适应图标的 background 层会被系统按遮罩拉伸，
   shape 的 <gradient> 直接铺满，不用关心 viewport 是多少。
@@ -9,7 +13,7 @@
     android:shape="rectangle">
     <gradient
         android:angle="315"
-        android:endColor="#FF6FD3C7"
-        android:startColor="#FF0B4F4E"
+        android:endColor="#FFEAF3FF"
+        android:startColor="#FFC7DEFB"
         android:type="linear" />
 </shape>

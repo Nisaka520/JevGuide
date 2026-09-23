@@ -127,7 +127,7 @@ class ResultActivity : AppCompatActivity() {
         // ── 抬头：谁 + 什么关系 ──
         root.addView(text(if (title.isEmpty()) "微信" else title, 22f, cOnSurface, bold = true))
         root.addView(text(
-            if (relation.isEmpty()) "Jev攻略 · 判读结果" else "Jev攻略 · $relation",
+            if (relation.isEmpty()) "弦外之音 · 判读结果" else "弦外之音 · $relation",
             12.5f, cOnSurfaceVariant, bold = false
         ).apply { setPadding(0, dp(2), 0, dp(10)) })
 
@@ -197,7 +197,7 @@ class ResultActivity : AppCompatActivity() {
         }
         row.addView(btn("复制全部") {
             val all = drafts.joinToString("\n\n") { "【${it.title}】\n${it.text}" }
-            copy("Jev攻略", all)
+            copy("弦外之音", all)
             toast("已复制 ${drafts.size} 条文案")
         })
         root.addView(row)
@@ -272,7 +272,7 @@ class ResultActivity : AppCompatActivity() {
                 isFocusable = true
                 addView(box)
                 setOnClickListener {
-                    copy("Jev攻略文案", d.text)
+                    copy("弦外之音文案", d.text)
                     toast("已复制：${d.title}")
                     // 复制完自动关：用户下一步一定是回微信粘贴，留在这一屏只会挡着聊天
                     finish()
@@ -294,7 +294,7 @@ class ResultActivity : AppCompatActivity() {
             val user = ReplyPrompt.buildUser(emptyList(), state, n)
             val r = ChatHttp.complete(
                 cfg.chatBaseUrl, cfg.chatApiKey, cfg.chatModel,
-                ReplyPrompt.buildSystem(memBlock, cfg.lang, cfg.promptExtra, cfg.styles()), user
+                ReplyPrompt.buildSystem(memBlock, cfg.lang, cfg.promptExtra, cfg.styles(), n), user
             )
             runOnUiThread {
                 when (r) {

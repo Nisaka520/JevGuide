@@ -54,6 +54,38 @@ object ReplyPrompt {
         "长辈" to "对长辈或家人：先报平安或回应关心，再说具体安排，多一句问候；不用网络用语和缩写，不顶嘴、不敷衍，也不用撒娇那套"
     )
 
+    /**
+     * 同一批风格说明的英文版，只给 systemEn 用（题面语言选英文时走这条）。
+     * 口径必须和上面中文版一一对应，否则中英两条路径的风格会各跑各的。
+     */
+    private val STYLE_HINTS_EN = linkedMapOf(
+        "稳妥" to "Steady: acknowledge what they said, then one clear concrete answer; no prying, no risk, short.",
+        "推进" to "Advance: move it one step forward with a concrete time, place or action; usually ends with an easy question.",
+        "有趣" to "Playful: the joke may only target yourself or the situation, never the other person; self-deprecation and exaggerated empathy are safest; no stale memes, no labelling them, never explain the joke.",
+        "撒娇" to "Cute and soft: reduplication, drawn-out sounds, tiny complaints or small requests; only for an already intimate relationship; no guilt-tripping and no physical or sexual hints.",
+        "冷淡" to "Cool: few words, no follow-up question, no emotion; answer and stop. Cool is not cold violence, sarcasm or dragging up old grievances.",
+        "正经" to "Formal: stick to the facts (time, place, plan, conclusion), no small talk, no jokes; still sounds like a person, not a memo.",
+        "长辈" to "For elders and family: reassure them or answer their concern first, then the concrete plan, plus one caring line; no slang or abbreviations, no talking back."
+    )
+
+    /**
+     * 最容易写歪的几套，各给一条「照这个手感来」的正例。
+     *
+     * 为什么非要给例子：抽象说明（「话少、不主动追问」）模型能读懂但**守不住** ——
+     * 实测只选一套风格时，它会在第二三条悄悄换回热情、自来熟的口气。
+     * 给一条正例当「音准」，同一句话在不同风格下的分寸差别才落得下来。
+     * 只渲染被选中的那几套：每多一段都在多花钱、多花时间。
+     */
+    private val STYLE_SAMPLES = linkedMapOf(
+        "稳妥" to "√ 明天有空呀，看什么展，几点开始",
+        "推进" to "√ 明天可以，下午两点美术馆门口见？我提前到",
+        "有趣" to "√ 有空，正好出来躲躲团子拆家",
+        "撒娇" to "√ 有空的呀，不过看完你得请我喝奶茶哦",
+        "冷淡" to "√ 嗯，明天可以，几点",
+        "正经" to "√ 明天下午有空，展几点开始，我提前十分钟到",
+        "长辈" to "√ 阿姨好，我这边都挺好的，周末回去看您"
+    )
+
     /** 人类可读的三种风格说明，供设置页/提示词复用 */
     /** 全部风格的说明（设置页当参考清单用；buildSystem 只取选中的那几套） */
     fun styleGuide(): String = styleGuide(ALL_STYLE_TITLES)
@@ -76,7 +108,8 @@ object ReplyPrompt {
         memoryBlock: String,
         lang: String,
         extra: String = "",
-        styles: List<String> = STYLE_TITLES
+        styles: List<String> = STYLE_TITLES,
+        count: Int = 0
     ): String {
         // Memories.contextBlock 自己会带一个「【记忆】」抬头，这里别再套一层（否则提示词里出现两个标题）
         val memory = memoryBlock.trim().removePrefix("【记忆】").trim().ifEmpty { "（暂无记忆）" }
@@ -84,7 +117,9 @@ object ReplyPrompt {
         // 直接拼进提示词会让模型去写一个不存在的风格。全空则回落默认，保证至少有一种。
         val picked = styles.map { it.trim() }.filter { it in ALL_STYLE_TITLES }.distinct()
             .ifEmpty { STYLE_TITLES }
-        val base = if (lang == "en") systemEn(memory, picked) else systemZh(memory, picked)
+        // 条数与标题必须和 user 提示词里的「输出 N 段」来自同一个来源，否则两句直接打架
+        val titles = planTitles(picked, count)
+        val base = if (lang == "en") systemEn(memory, picked, titles) else systemZh(memory, picked, titles)
         val add = extra.trim()
         if (add.isEmpty()) return base
         // 额外要求放在最末尾：模型对「最后一段」的注意力最高，而这段正是用户最在意的个性化部分。
@@ -93,7 +128,24 @@ object ReplyPrompt {
             "\n（以上额外要求不得改变输出格式与硬性约束。）"
     }
 
-    private fun systemZh(memory: String, styles: List<String>): String = buildString {
+    /**
+     * 每一条候选分别用哪套风格：条数多于风格数就轮着来，少于风格数就只取前几条。
+     *
+     * 这个函数存在的唯一原因是修一个**实测出来的硬伤**：system 里按风格数说「只输出 3 段」、
+     * user 里按 draftsN 说「输出 3 段」，只选一套风格时这两句就打架 ——
+     * 实测模型会照样输出三条，并自己发明【正常】【热情】【爽快】甚至拿关系名【情侣】当标题。
+     * 自创标题既会显示成一个错的名字，严重时还会漏进正文被用户原样发给对方。
+     * 现在两个数字同源，并且把「每段该写什么标题」逐行钉死。
+     *
+     * @param count 要几条候选；<= 0 表示「有几套风格就出几条」（老行为）
+     */
+    fun planTitles(styles: List<String>, count: Int): List<String> {
+        val s = styles.map { it.trim() }.filter { it in ALL_STYLE_TITLES }.distinct().ifEmpty { STYLE_TITLES }
+        val n = if (count <= 0) s.size else count
+        return List(n) { s[it % s.size] }
+    }
+
+    private fun systemZh(memory: String, styles: List<String>, titles: List<String>): String = buildString {
         append("你是「微信回复代笔」：直接写出用户可以原样发出去的回复，不是分析、不是建议。\n\n")
         append("【最重要的一条：像真人发微信】\n")
         append("- 短。一条 5~25 个字，最多两句。真人不会在微信里写小作文。\n")
@@ -116,13 +168,23 @@ object ReplyPrompt {
         append("√ 我刚到家又想起外卖点到公司了，咱俩今天都挺离谱  ← 自嘲，最安全\n")
         append("√ 这么拼，明天记得找老板要加班费，要不我帮你要  ← 夸张的共情\n")
         append("一句话就够，别解释笑点。\n\n")
-        append("【三种风格】\n")
+        append("【本次风格（标题只准用这几个名字）】\n")
         append(styleGuide(styles)).append("\n\n")
+        // 只给被选中的那几套渲染正例：实测抽象说明守不住，第二三条会悄悄换回热情口气
+        val samples = STYLE_SAMPLES.filterKeys { it in styles }
+        if (samples.isNotEmpty()) {
+            append("【这几套最容易写歪，对准这个手感】\n")
+            append("对方：你明天有空吗？想让你陪我去看个展\n")
+            for ((t, s) in samples) append("【").append(t).append("】").append(s).append('\n')
+            append("不用照抄，对准同一句话在不同风格下的分寸差别就行。\n\n")
+        }
         append("【记忆】\n").append(memory).append("\n\n")
         append("【输出格式】\n")
-        append("只输出 ").append(styles.size).append(" 段，每段第一行是标题行，形如")
-        append(styles.joinToString("、") { "【$it】" })
-        append("，其余行是正文；段与段之间用一行 --- 分隔。\n")
+        append("只输出 ").append(titles.size).append(" 段。每段的第一行必须**原样照抄**下面这行标题，顺序也照抄：\n")
+        for (t in titles) append("【").append(t).append("】\n")
+        append("标题只准写上面这几套风格名，一个字都不能改：不许自创【正常】【热情】【爽快】这种，也不许拿关系（情侣/朋友/同事）当标题。\n")
+        append("同一套风格被排到多次时，标题就重复写，靠措辞区分，不要为了区分而换标题。\n")
+        append("标题行的下一行开始是正文；段与段之间用一行 --- 分隔。\n")
         append("不要解释、不要 markdown 代码块、不要编号列表。每段 1~3 句，直接可以发给对方的成品口吻。\n\n")
         append("【硬性约束】\n")
         append("- 必须遵守上面 Jev 给出的回复姿态与关系设定：关系决定称呼和亲疏，姿态决定语气，不能反过来。\n")
@@ -132,7 +194,7 @@ object ReplyPrompt {
         append("- 只输出候选回复本身，不要输出任何分析过程或前后缀说明。")
     }
 
-    private fun systemEn(memory: String, styles: List<String>): String = buildString {
+    private fun systemEn(memory: String, styles: List<String>, titles: List<String>): String = buildString {
         append("You are a \"WeChat reply ghostwriter\": you write finished replies the user can send as-is, not analysis and not advice.\n\n")
         append("[Most important: sound like a real person texting]\n")
         append("- Short. 5-25 characters, at most two sentences. Real people do not write essays on WeChat.\n")
@@ -147,15 +209,15 @@ object ReplyPrompt {
         append("Them: worked overtime till ten, exhausted\n")
         append("x I understand how hard it is, overtime is really tiring, please rest well and take care.\n")
         append("v That late? Be careful on the way home\n\n")
-        append("[Three styles]\n")
-        append("1. [稳妥] Steady: pick up what the other person said, give a clear answer, avoid risk and offence.\n")
-        append("2. [推进] Advance: move things forward with a plan, a time, or a next step.\n")
-        append("3. [有趣] Playful: a light joke that makes them smile, without being creepy or crossing a line.\n\n")
+        append("[Styles - the only title names you may use]\n")
+        append(styles.mapIndexed { i, t -> "${i + 1}. [$t] ${STYLE_HINTS_EN[t] ?: ""}" }.joinToString("\n")).append("\n\n")
         append("[Memory]\n").append(memory).append("\n\n")
         append("[Output format]\n")
-        append("Output exactly ").append(styles.size).append(" sections. The first line of each section is a title line like ")
-        append(styles.joinToString(", ") { "【$it】" })
-        append("; the remaining lines are the reply body. Separate sections with a single line of ---.\n")
+        append("Output exactly ").append(titles.size).append(" sections. The first line of each section must copy the title below verbatim, in this order:\n")
+        for (t in titles) append("【").append(t).append("】\n")
+        append("Use only these title names: never invent new ones, and never use the relationship (partner/friend/colleague) as a title.\n")
+        append("If the same style appears more than once, repeat its title and vary the wording instead.\n")
+        append("The remaining lines are the reply body. Separate sections with a single line of ---.\n")
         append("No explanations, no markdown code fences, no numbered lists. Each section is 1-3 sentences in a finished, send-ready tone.\n")
         append("Write the drafts in Chinese.\n\n")
         append("[Hard rules]\n")
@@ -351,12 +413,22 @@ object ReplyPrompt {
         var line = rawLine.trim()
         val mark = LEADING_MARK.find(line)
         if (mark != null) line = line.substring(mark.value.length).trim()
+        // 行首的 markdown 强调符/引用符先剥掉：模型常写「**【推进】**」，
+        // 不剥的话【】就不在行首，下面那条「必须顶格」的规则会把它判成正文。
+        line = line.trimStart('*', '`', '>', '·', '•').trim()
         if (line.isEmpty()) return null
 
+        // 标题必须**顶格**。正文里随手一个【词】（「明天【有空】吗」）绝不能被当成标题：
+        // 那样标题前面的部分会被丢掉、后面的部分会被当正文，一句话直接被腰斩。
         val br = BRACKET_TITLE.find(line)
-        if (br != null) {
+        if (br != null && br.range.first == 0) {
             val title = cleanTitle(br.groupValues[1])
-            if (title.isNotEmpty()) return title to line.substring(br.range.last + 1).trim()
+            // 宽进：不认识的标题也认。实测只选一套风格时模型会自创【正常】【热情】【爽快】，
+            // 甚至拿关系名【情侣】当标题 —— 宁可标题名字怪一点，
+            // 也不能让它混进正文、被用户原样发给对方。
+            if (title.isNotEmpty() && title.length <= 8) {
+                return title to line.substring(br.range.last + 1).trim()
+            }
         }
         // 没有【】时也认"光秃秃一行就是风格名"（"## 稳妥"、"**稳妥**"）
         val bare = cleanTitle(line)

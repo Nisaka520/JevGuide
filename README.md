@@ -1,4 +1,4 @@
-﻿# Jev攻略（JevGuide）
+﻿# 弦外之音（JevGuide）
 
 微信聊天里的**关系进展助手**：读屏 → Jev 判读 + 攻略度评分 → 聊天模型出 3 条候选回复，攻略度**常驻挂在屏幕上**。
 
@@ -178,7 +178,7 @@ HTTP 400  {"detail": "Too many score levels. Must have at most 10 levels."}
 ### 装到手机
 
 1. 装 `app-debug.apk`（**不需要 root**）
-2. 打开 App → 「去开启无障碍」→ 系统设置里找到 **Jev攻略** → 开启
+2. 打开 App → 「去开启无障碍」→ 系统设置里找到 **弦外之音** → 开启
 3. 填密钥：
    - **Jev 密钥**（`apikey_…`，判读与攻略度用）：[console.typesafe.ai](https://console.typesafe.ai) 登录 → API Keys → 新建
    - **聊天模型密钥**（生成文案用）：默认 DeepSeek，任何 OpenAI 兼容端点都行

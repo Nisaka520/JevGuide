@@ -1,4 +1,4 @@
-package io.github.nisaka520.jevguide
+﻿package io.github.nisaka520.jevguide
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -14,7 +14,7 @@ class AnalyzeReceiver : BroadcastReceiver() {
         val action = intent?.action ?: return
         val svc = WatchService.instance
         if (svc == null) {
-            Toast3.toast(context, "无障碍服务没在运行：设置里开启「Jev攻略 · 微信判读」", true)
+            Toast3.toast(context, "无障碍服务没在运行：设置里开启「弦外之音 · 微信判读」", true)
             return
         }
         when (action) {

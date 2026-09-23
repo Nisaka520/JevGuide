@@ -1,4 +1,4 @@
-package io.github.nisaka520.jevguide
+﻿package io.github.nisaka520.jevguide
 
 import android.accessibilityservice.AccessibilityService
 import android.graphics.Rect
@@ -123,7 +123,7 @@ object WeChatReader {
     fun dump(service: AccessibilityService): String {
         val sb = StringBuilder(96 * 1024)
         val dm = service.resources.displayMetrics
-        sb.append("Jev攻略抓屏诊断 v").append(BuildConfig.VERSION_NAME).append('\n')
+        sb.append("弦外之音抓屏诊断 v").append(BuildConfig.VERSION_NAME).append('\n')
         sb.append("时间：")
             .append(java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date()))
             .append('\n')
