@@ -55,9 +55,18 @@ object Analyzer {
 
         val contact = Contacts.match(cfg.contacts(), digest.title, digest.peer)
             ?: Contacts.fallback(digest.title)
-        val memKey = MemKeys.of(digest.title)
-        val mem = if (cfg.memoryEnabled) Memories.load(ctx, memKey, digest.title) else emptyMemory(memKey, digest.title)
-        val memBlock = if (cfg.memoryEnabled) Memories.contextBlock(mem) else ""
+        // 名字就是记忆的**身份**。视觉模型偶尔读不出标题，那时若拿空串当 key，
+        // MemKeys.of("") 会得到同一个 key，于是所有"读不出名字"的聊天共用一份记忆文件 ——
+        // 等于把不同人的记忆混在一起，模型会把 A 说过的事当成 B 说的。
+        // 所以先用上次读到的名字兜底；**仍然没有名字就干脆不启用记忆**（宁可不记，也不能记错）。
+        val who = digest.title.ifEmpty { cfg.lastContactName }
+        val memKey = MemKeys.of(who)
+        val memoryOn = cfg.memoryEnabled && memKey.isNotEmpty()
+        if (cfg.memoryEnabled && memKey.isEmpty()) {
+            AppLog.add("读不出联系人名，本次跳过记忆（避免与别人的记忆混在一起）")
+        }
+        val mem = if (memoryOn) Memories.load(ctx, memKey, who) else emptyMemory(memKey, who)
+        val memBlock = if (memoryOn) Memories.contextBlock(mem) else ""
         val lastScore = mem.scores.firstOrNull()?.score
 
         val state = digest.state(contact, cfg.contextN, memBlock)
@@ -98,12 +107,12 @@ object Analyzer {
                     val lines = v.lines(cfg.emotionTop) + v.guideLine(trend)
 
                     // ── 记忆回写（先落盘再出文案：文案失败也不该丢记忆）──
-                    if (cfg.memoryEnabled) {
+                    if (memoryOn) {
                         try {
-                            Memories.appendTurns(ctx, memKey, digest.title,
+                            Memories.appendTurns(ctx, memKey, who,
                                 digest.msgs.takeLast(20).map { Turn(System.currentTimeMillis(), it.mine, it.text) })
                             if (guide != null) {
-                                Memories.addScore(ctx, memKey, digest.title, guide, v.style.ifEmpty { v.advice })
+                                Memories.addScore(ctx, memKey, who, guide, v.style.ifEmpty { v.advice })
                             }
                         } catch (t: Throwable) {
                             AppLog.add("记忆回写失败：${t.javaClass.simpleName} ${t.message ?: ""}")
@@ -141,8 +150,7 @@ object Analyzer {
 
                     // 攻略度优先上**常驻浮层**：一眼就能看到，不用弹窗挡着聊天
                     ScoreOverlay.lastPayload = payload
-                    // 名字为空就沿用上次读到的：浮条上写"微信"等于没写（用户反馈"没显示当前聊天的人的名字"）
-                    val who = digest.title.ifEmpty { cfg.lastContactName }
+                    // who 在上面已经算好了（记忆的 key 就靠它），这里只回写供下次兜底
                     if (who.isNotEmpty()) cfg.lastContactName = who
                     val overlayText = ScoreOverlay.format(who, guide, trend)
                     cfg.lastOverlayText = overlayText
@@ -167,7 +175,7 @@ object Analyzer {
                     // ── 攒够新对话就刷新一次长期摘要 ──
                     if (cfg.memoryEnabled && cfg.summarizeEvery > 0) {
                         try {
-                            val fresh = Memories.load(ctx, memKey, digest.title)
+                            val fresh = Memories.load(ctx, memKey, who)
                             if (fresh.turns.size - fresh.turnsAtSummary >= cfg.summarizeEvery) {
                                 MemoryUpdater.refresh(ctx, cfg, fresh)
                             }

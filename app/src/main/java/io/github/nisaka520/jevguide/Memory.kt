@@ -1,4 +1,4 @@
-package io.github.nisaka520.jevguide
+﻿package io.github.nisaka520.jevguide
 
 import android.content.Context
 import java.io.File
@@ -484,6 +484,9 @@ object Memories {
         }
 
         if (lines.isEmpty()) return ""
+        // 开头点明"这段记忆属于谁"：块里的「我／对方」只说明了角色，没说明对方是谁，
+        // 模型同时看到多个人的信息时容易张冠李戴 —— 一行字就把归属钉死。
+        if (mem.name.isNotEmpty()) lines.add(0, "对象：${mem.name}")
         return "【记忆】\n" + lines.joinToString("\n")
     }
 

@@ -1,4 +1,4 @@
-package io.github.nisaka520.jevguide
+﻿package io.github.nisaka520.jevguide
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -238,7 +238,11 @@ class MemoryTest {
 
         // 只有关系 → 只输出关系行；updatedAt=0 时不编造"最近更新"
         val onlyRelation = Memories.contextBlock(mem(key = "k", name = "k", relation = "同事"))
-        assertEquals("【记忆】\n关系：同事", onlyRelation)
+        // 记忆块开头会点明归属（对象：xxx），所以这里只钉住"有抬头 + 有关系行"，
+        // 不锁死夹具名字，免得改个测试数据就红一片
+        assertTrue(onlyRelation.startsWith("【记忆】\n"))
+        assertTrue(onlyRelation.contains("对象："))
+        assertTrue(onlyRelation.endsWith("关系：同事"))
 
         val withTime = Memories.contextBlock(mem(key = "k", name = "k", relation = "情侣", updatedAt = 1_700_000_000_000L))
         assertTrue(Regex("""关系：情侣（最近更新：\d{2}-\d{2}）""").containsMatchIn(withTime))
@@ -312,7 +316,8 @@ class MemoryTest {
 
         // 参数为 0 → 整段省略
         val none = Memories.contextBlock(m, maxFacts = 0, maxScores = 0, maxTurns = 0)
-        assertEquals("【记忆】\n关系：同事", none)
+        assertTrue(none.startsWith("【记忆】\n"))
+        assertTrue(none.endsWith("关系：同事"))
     }
 
     // --- 与 Digest.ScreenMsg 对齐 ----------------------------------------
