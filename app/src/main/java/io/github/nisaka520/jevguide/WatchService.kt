@@ -89,9 +89,22 @@ class WatchService : AccessibilityService() {
         return try {
             ScoreOverlay.hide()
             syncButton()
-            restoreOverlay(Config(this))
+            val cfg = Config(this)
+            // 点了启动就要**当场看见**浮条，而不是非得退出这个软件去微信里找。
+            // 之前浮条被 MainActivity.onStart 里的 setSuppressed(true) 压着，点完启动屏幕上
+            // 什么都没有，用户会以为没生效（用户反馈：希望点了就显现，而不是退出这个软件）。
+            ScoreOverlay.setSuppressed(cfg, false)
+            restoreOverlay(cfg)
+            // 还没判读过就没有结果可恢复 —— 给个占位，至少让人看见「它起来了」
+            if (cfg.overlayEnabled && !ScoreOverlay.isShowing()) {
+                ScoreOverlay.show(this, cfg, "已启动 · 去微信点我识别", null)
+            }
             AppLog.add("重新启动：已清理旧浮层与按钮标志，并按当前配置重挂")
-            "已重新启动（旧的浮层/按钮已清理）"
+            if (!cfg.overlayEnabled) {
+                "已重新启动（浮条开关是关的，去「常驻悬浮条」打开）"
+            } else {
+                "已启动，浮条已经出现在屏幕上"
+            }
         } catch (t: Throwable) {
             AppLog.add("重新启动失败：${t.javaClass.simpleName} ${t.message ?: ""}")
             "重新启动失败：" + (t.message ?: t.javaClass.simpleName)
