@@ -37,8 +37,14 @@ import java.util.concurrent.Executors
  */
 object VisionReader {
 
-    /** 缩图目标宽度：够看清聊天气泡，又别让 base64 太肥 */
-    const val MAX_WIDTH = 900
+    /**
+     * 缩图目标宽度：够看清聊天气泡，又别让 base64 太肥。
+     *
+     * 从 900 降到 640（用户反馈：一次完整判读 15 秒太长）：图像 token 大致按面积走，
+     * (640/900)² ≈ 0.51，等于带图那趟的输入小一半，首字延迟和总耗时跟着降。
+     * 640 宽看微信气泡里的中文仍然够用 —— 原来 900 是为了保险留的余量。
+     */
+    const val MAX_WIDTH = 640
 
     /** 截图 + 模型调用都比较慢，给足超时（端点是自己的，超了也比截断强） */
     private const val TIMEOUT_MS = 60000
