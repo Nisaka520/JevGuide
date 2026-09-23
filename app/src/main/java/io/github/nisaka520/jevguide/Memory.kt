@@ -451,9 +451,11 @@ object Memories {
      */
     fun contextBlock(
         mem: ContactMemory,
-        maxFacts: Int = 6,
-        maxScores: Int = 5,
-        maxTurns: Int = 8
+        // 默认给得小一点：这几条每次都塞进提示词，条数直接决定输入长度和延迟。
+        // 记忆是「背景」不是逐字稿，留最近最关键的几条就够（用户要求：摘要别留太多）。
+        maxFacts: Int = 3,
+        maxScores: Int = 3,
+        maxTurns: Int = 4
     ): String {
         val lines = ArrayList<String>()
 

@@ -77,6 +77,9 @@ object ChatHttp {
             "max_tokens" to maxTokens,
             "stream" to false
         )
+        // 智谱 GLM-5.3 的 reasoning_effort 默认是 max（思考拉满，慢得肉眼可见），降到 low 快很多。
+        // 只对智谱发：别的 OpenAI 兼容服务不认识这个字段，可能直接报错。
+        if (baseUrl.contains("bigmodel.cn")) payload["reasoning_effort"] = "low"
 
         val raw = post(endpoint(baseUrl), apiKey, Json.write(payload), timeoutMs)
         if (raw is ChatResult.Err) return raw
