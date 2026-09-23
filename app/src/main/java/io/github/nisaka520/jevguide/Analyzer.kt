@@ -1,4 +1,4 @@
-package io.github.nisaka520.jevguide
+﻿package io.github.nisaka520.jevguide
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -127,7 +127,7 @@ object Analyzer {
 
                     // ── 出结果 ──
                     val payload = ResultPayload(
-                        title = digest.title,
+                        title = digest.title.ifEmpty { cfg.lastContactName },
                         relation = contact.relation,
                         guidePercent = guide,
                         trend = trend,
@@ -141,7 +141,10 @@ object Analyzer {
 
                     // 攻略度优先上**常驻浮层**：一眼就能看到，不用弹窗挡着聊天
                     ScoreOverlay.lastPayload = payload
-                    val overlayText = ScoreOverlay.format(digest.title, guide, trend)
+                    // 名字为空就沿用上次读到的：浮条上写"微信"等于没写（用户反馈"没显示当前聊天的人的名字"）
+                    val who = digest.title.ifEmpty { cfg.lastContactName }
+                    if (who.isNotEmpty()) cfg.lastContactName = who
+                    val overlayText = ScoreOverlay.format(who, guide, trend)
                     cfg.lastOverlayText = overlayText
                     cfg.lastOverlayPercent = guide ?: -1
                     val svc = WatchService.instance

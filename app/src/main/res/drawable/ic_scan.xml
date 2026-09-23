@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  浮条右端的「识别」图标：取景框四角 + 中间一条扫描线。
+  用扫描框而不是刷新箭头，是因为这个动作是「对着当前聊天读一次」，
+  取景框比循环箭头更能说明"读的是眼前这一屏"。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- 左上角 -->
+    <path
+        android:pathData="M4,8.5 V5.5 A1.5,1.5 0 0 1 5.5,4 H8.5"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeWidth="1.8" />
+    <!-- 右上角 -->
+    <path
+        android:pathData="M15.5,4 H18.5 A1.5,1.5 0 0 1 20,5.5 V8.5"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeWidth="1.8" />
+    <!-- 右下角 -->
+    <path
+        android:pathData="M20,15.5 V18.5 A1.5,1.5 0 0 1 18.5,20 H15.5"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeWidth="1.8" />
+    <!-- 左下角 -->
+    <path
+        android:pathData="M8.5,20 H5.5 A1.5,1.5 0 0 1 4,18.5 V15.5"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeWidth="1.8" />
+    <!-- 扫描线 -->
+    <path
+        android:pathData="M7,12 H17"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeWidth="1.8" />
+</vector>

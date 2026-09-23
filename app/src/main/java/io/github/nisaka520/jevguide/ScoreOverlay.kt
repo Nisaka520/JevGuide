@@ -1,4 +1,4 @@
-package io.github.nisaka520.jevguide
+﻿package io.github.nisaka520.jevguide
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Context
@@ -11,6 +11,7 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import kotlin.math.abs
@@ -145,6 +146,28 @@ object ScoreOverlay {
                 background = ringDrawable(service, percent)
                 layoutParams = LinearLayout.LayoutParams(dp(service, RING), dp(service, RING))
             }
+            // 左区：色环 + 名字与攻略度 —— 点它看结果/选项
+            val left = LinearLayout(themed).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                addView(dot)
+                addView(tv)
+            }
+            // 右区：一个「识别」图标键 —— 点它立刻重新读一次。
+            // 为什么非要单独一个键：原来整颗胶囊只有一个动作，读过一次之后它就只会打开结果页，
+            // 想再读一次的人就找不到入口了（用户原话："读取一次之后，再点击浮条，变成了选项。之后怎么读取呢？"）
+            val sep = View(themed).apply {
+                background = GradientDrawable().apply { setColor(outline) }
+                layoutParams = LinearLayout.LayoutParams(dp(service, 1), dp(service, 18)).apply {
+                    leftMargin = dp(service, 10)
+                    rightMargin = dp(service, 10)
+                }
+            }
+            val icon = ImageView(themed).apply {
+                setImageResource(R.drawable.ic_scan)
+                imageTintList = android.content.res.ColorStateList.valueOf(colorOf(percent))
+                layoutParams = LinearLayout.LayoutParams(dp(service, 20), dp(service, 20))
+            }
             val box = LinearLayout(themed).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
@@ -156,8 +179,9 @@ object ScoreOverlay {
                     setStroke(dp(service, 1), outline)
                 }
                 elevation = dp(service, 6).toFloat()
-                addView(dot)
-                addView(tv)
+                addView(left)
+                addView(sep)
+                addView(icon)
             }
             // 色环用"分数语义色"（跟结果页同一套阈值色），刻意不跟壁纸走
             val w = service.getSystemService(AccessibilityService.WINDOW_SERVICE) as WindowManager
@@ -269,7 +293,11 @@ object ScoreOverlay {
                         // 记下位置，下次还在原地
                         cfg.overlayX = p.x
                         cfg.overlayY = p.y
-                        onClick()
+                        // 右端 52dp 是「识别」键，其余部分点开结果/选项。
+                        // 用坐标分区、而不是给子 View 挂点击：子 View 一旦可点就会吃掉事件，
+                        // 那样连拖动都没法从图标上起手了。
+                        val rightZone = v.width - dp(service, 52)
+                        if (e.x >= rightZone) analyzeNow() else openResult()
                     } else if (dragged) {
                         cfg.overlayX = p.x
                         cfg.overlayY = p.y
@@ -280,17 +308,33 @@ object ScoreOverlay {
             return false
         }
 
-        /** 有结果就打开结果页（文案在那儿复制）；还没结果就直接判读一次 */
-        private fun onClick() {
+        /** 左区：有结果就打开结果页（文案在那儿复制）；还没结果就先识别一次 */
+        private fun openResult() {
             val payload = lastPayload
             if (payload == null) {
-                Toast3.toast(service, "开始判读…")
-                WatchService.instance?.analyzeNow(true)
+                Toast3.toast(service, "还没有结果，先识别一次")
+                analyzeNow()
                 return
             }
             if (!ResultActivity.show(service, payload)) {
                 Toast3.toast(service, "结果页打不开，看通知栏", true)
             }
+        }
+
+        /**
+         * 右区「识别」键：永远只管重新读一次。
+         *
+         * 这个入口必须**与有没有结果无关** —— 之前整颗胶囊读过一次就只剩
+         * "打开结果页"一个动作，于是想再读的人找不到路。
+         */
+        private fun analyzeNow() {
+            val svc = WatchService.instance
+            if (svc == null) {
+                Toast3.toast(service, "无障碍服务没在运行", true)
+                return
+            }
+            Toast3.toast(service, "开始识别…")
+            svc.analyzeNow(true)
         }
     }
 

@@ -1,4 +1,4 @@
-package io.github.nisaka520.jevguide
+﻿package io.github.nisaka520.jevguide
 
 import android.accessibilityservice.AccessibilityService
 import android.graphics.Bitmap
@@ -167,7 +167,9 @@ object VisionReader {
         append("只输出一个 JSON 对象，不要 markdown 代码块、不要任何解释：\n")
         append("""{"title":"会话标题","messages":[{"mine":false,"text":"消息原文"}]}""").append('\n')
         append("规则：\n")
-        append("1. title：单聊填对方昵称（标题栏中间那个名字）；群聊照抄，形如「项目组 (8)」；没有标题栏就填空串。\n")
+        append("1. title：**必须**填标题栏中间那个名字（单聊＝对方昵称；群聊照抄，形如「项目组 (8)」）。\n")
+        append("   标题栏在屏幕**最上方那一行**，字号很小，请专门抬头看一眼 —— 它一定有名字。\n")
+        append("   只有整张图里确实看不到标题栏时才填空串；不要写「会话标题」「微信」这类占位。\n")
         append("2. messages：按屏幕**从上到下**排列（旧的在前，新的在后）。\n")
         append("3. mine：true = 这条是**我**发的（右侧、绿色气泡）；false = 对方发的（左侧、白色气泡）。\n")
         append("4. text：只写气泡里的正文。不要写时间、昵称、「以下为新消息」这类系统提示。\n")

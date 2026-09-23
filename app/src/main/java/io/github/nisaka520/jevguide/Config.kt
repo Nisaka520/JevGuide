@@ -1,4 +1,4 @@
-package io.github.nisaka520.jevguide
+﻿package io.github.nisaka520.jevguide
 
 import android.content.Context
 
@@ -180,6 +180,11 @@ class Config(ctx: Context) {
     var overlayY: Int
         get() = sp.getInt("overlay_y", 420)
         set(v) = sp.edit().putInt("overlay_y", v).apply()
+
+    /** 最近一次读到的联系人名：视觉模型偶尔不返回标题，用它兜住，免得浮条只显示"微信" */
+    var lastContactName: String
+        get() = sp.getString("last_contact_name", "").orEmpty()
+        set(v) = sp.edit().putString("last_contact_name", v).apply()
 
     /** 浮层上最近显示的文字与分数：服务重启后照原样恢复，不用等下次判读 */
     var lastOverlayText: String

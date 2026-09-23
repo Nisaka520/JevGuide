@@ -1,4 +1,4 @@
-package io.github.nisaka520.jevguide
+﻿package io.github.nisaka520.jevguide
 
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -197,7 +197,11 @@ class ResultActivity : AppCompatActivity() {
             copy("Jev攻略", all)
             toast("已复制 ${drafts.size} 条文案")
         })
-        row.addView(btn("关闭", filled = true) { finish() })
+        row.addView(btn("关闭", filled = true) { finish() }.apply {
+            // 关闭键要显眼：这一屏是浮在微信上面的，找不到"怎么退出去"最让人烦躁
+            textSize = 15f
+            setPadding(dp(28), paddingTop, dp(28), paddingBottom)
+        })
         root.addView(row)
 
         statusLine.text = buildString {
@@ -260,6 +264,8 @@ class ResultActivity : AppCompatActivity() {
                 setOnClickListener {
                     copy("Jev攻略文案", d.text)
                     toast("已复制：${d.title}")
+                    // 复制完自动关：用户下一步一定是回微信粘贴，留在这一屏只会挡着聊天
+                    finish()
                 }
             }
             draftsBox.addView(card, matchWrap(top = 8, bottom = 0))
