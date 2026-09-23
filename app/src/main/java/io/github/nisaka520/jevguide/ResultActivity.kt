@@ -197,7 +197,7 @@ class ResultActivity : AppCompatActivity() {
             copy("Jev攻略", all)
             toast("已复制 ${drafts.size} 条文案")
         })
-        row.addView(btn("关闭", filled = true) { finish() }.apply {
+        row.addView(btn("✕ 关闭", filled = true) { finish() }.apply {
             // 关闭键要显眼：这一屏是浮在微信上面的，找不到"怎么退出去"最让人烦躁
             textSize = 15f
             setPadding(dp(28), paddingTop, dp(28), paddingBottom)
@@ -377,7 +377,12 @@ class ResultActivity : AppCompatActivity() {
             textSize = 13.5f
             isAllCaps = false
             cornerRadius = dp(12)
-            if (!filled) {
+            if (filled) {
+                // filled 也必须显式给前景色：不设的话实心按钮的文字会跟底色一样，
+                // 看起来就是一块纯色（用户反馈：纯色谁能看得懂）
+                backgroundTintList = ColorStateList.valueOf(attr(com.google.android.material.R.attr.colorPrimary))
+                setTextColor(attr(com.google.android.material.R.attr.colorOnPrimary))
+            } else {
                 backgroundTintList = ColorStateList.valueOf(
                     attr(com.google.android.material.R.attr.colorSecondaryContainer)
                 )
