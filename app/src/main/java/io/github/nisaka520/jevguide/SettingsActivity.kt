@@ -1,4 +1,4 @@
-package io.github.nisaka520.jevguide
+﻿package io.github.nisaka520.jevguide
 
 import android.Manifest
 import android.content.Intent
@@ -50,6 +50,13 @@ class SettingsActivity : AppCompatActivity() {
         }
         val scroll = ScrollView(this).apply {
             addView(page)
+            // targetSdk 35 起系统强制全面屏（edge-to-edge），状态栏会直接压在标题上 ——
+            // 实测截图里「16:07」和「Jev攻略」是叠在一起的。所以自己把系统栏高度吃成内边距。
+            androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(this) { v, insets ->
+                val bars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+                v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+                insets
+            }
             // 内容延伸到系统栏下面时，别把最后一屏内容顶到导航条上
             clipToPadding = false
         }
@@ -66,6 +73,23 @@ class SettingsActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         refreshDynamic()
+    }
+
+    /**
+     * 自己的界面在前台时把常驻浮条收起来。
+     *
+     * 浮条是给「在微信里看聊天」用的；挂在设置页上只会压住标题 ——
+     * 实测截图里它正好盖住「Jev攻略」，视觉模型第一眼就把它标成了 bug。
+     * 跟结果页的处理保持一致：进自己的界面就收，回微信自动回来。
+     */
+    override fun onStart() {
+        super.onStart()
+        ScoreOverlay.setSuppressed(cfg, true)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        ScoreOverlay.setSuppressed(cfg, false)
     }
 
     // ────────────────────────── 页面
@@ -85,7 +109,7 @@ class SettingsActivity : AppCompatActivity() {
                 AppLog.add("打不开无障碍设置：${e.message}")
             }
         }
-        button("立即判读一次") {
+        button("立即判读一次", filled = true) {
             val svc = WatchService.instance
             if (svc == null) {
                 toast("无障碍服务没在运行")
@@ -98,12 +122,12 @@ class SettingsActivity : AppCompatActivity() {
         section("接口密钥")
         sub("填自己的 TypeSafe/Jev 密钥（apikey_… 开头，约 100 字符）。没有的话：console.typesafe.ai 用 Google 或邮箱验证码登录 → API Keys → 新建，复制过来贴上。")
         val key = edit(cfg.apiKey, "apikey_…（只存在本机）", password = true)
-        button("保存密钥") {
+        button("保存密钥", filled = true) {
             cfg.apiKey = key.text.toString().trim()
             toast(if (cfg.hasKey()) "已保存（${cfg.apiKey.length} 字符）" else "太短了，密钥一般 100 字符左右")
             refreshDynamic()
         }
-        button("测试密钥") {
+        button("测试密钥", filled = true) {
             val k = key.text.toString().trim()
             if (k.length < 20) {
                 toast("先填密钥")
@@ -143,7 +167,7 @@ class SettingsActivity : AppCompatActivity() {
             "名字,别名=关系/性别/备注",
             multiline = true
         )
-        button("保存联系人表") {
+        button("保存联系人表", filled = true) {
             val list = rel.text.toString().split('\n').mapNotNull { Contacts.parseLine(it) }
             cfg.saveContacts(list)
             toast("已保存 ${list.size} 位联系人")
@@ -567,21 +591,21 @@ class SettingsActivity : AppCompatActivity() {
         setTextColor(cOnSurface)
         setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f)
         typeface = android.graphics.Typeface.DEFAULT_BOLD
-        setPadding(0, dp(4), 0, dp(2))
+        setPadding(0, dp(8), 0, dp(4))
     })
 
     private fun section(t: String) = page.addView(TextView(this).apply {
         text = t
         setTextColor(cPrimary)
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 16.5f)
         typeface = android.graphics.Typeface.DEFAULT_BOLD
-        setPadding(0, dp(26), 0, dp(2))
+        setPadding(0, dp(22), 0, dp(4))
     })
 
     private fun sub(t: String) = page.addView(TextView(this).apply {
         text = t
         setTextColor(cOnSurfaceVariant)
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
         setLineSpacing(dp(4).toFloat(), 1f)
         setPadding(dp(2), dp(2), dp(2), dp(8))
     })
@@ -607,10 +631,10 @@ class SettingsActivity : AppCompatActivity() {
     ): EditText {
         val box = TextInputLayout(this).apply {
             // 描边盒（OutlinedBox）是 MD3 里最"表单"的一种，标签会浮到边框上，省一行标题
-            boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
+            boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_FILLED
             // 一次设四个角：Material 1.12 里单独设 TopEnd/BottomStart/BottomEnd 的 setter 已被移除
             // （写成属性会报 'val' cannot be reassigned），setBoxCornerRadii 才是稳的写法
-            setBoxCornerRadii(dp(12).toFloat(), dp(12).toFloat(), dp(12).toFloat(), dp(12).toFloat())
+            setBoxCornerRadii(dp(8).toFloat(), dp(8).toFloat(), 0f, 0f)
         }
         val et = TextInputEditText(box.context).apply {
             setText(value)
@@ -637,7 +661,8 @@ class SettingsActivity : AppCompatActivity() {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            background = card(cContainerHigh)
+            // 开关行不自己套一层卡片：一屏几十个小盒子会让界面碎成一地（实测截图后视觉模型也这么判）
+            background = null
             setPadding(dp(14), dp(10), dp(10), dp(10))
             addView(TextView(this@SettingsActivity).apply {
                 text = label
@@ -662,10 +687,10 @@ class SettingsActivity : AppCompatActivity() {
     private fun spinner(label: String, options: List<String>, index: Int, onPick: (Int) -> Unit) {
         val box = TextInputLayout(this).apply {
             hint = label
-            boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
+            boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_FILLED
             // 一次设四个角：Material 1.12 里单独设 TopEnd/BottomStart/BottomEnd 的 setter 已被移除
             // （写成属性会报 'val' cannot be reassigned），setBoxCornerRadii 才是稳的写法
-            setBoxCornerRadii(dp(12).toFloat(), dp(12).toFloat(), dp(12).toFloat(), dp(12).toFloat())
+            setBoxCornerRadii(dp(8).toFloat(), dp(8).toFloat(), 0f, 0f)
         }
         val tv = MaterialAutoCompleteTextView(box.context).apply {
             inputType = InputType.TYPE_NULL                      // 只选不打字
@@ -688,7 +713,7 @@ class SettingsActivity : AppCompatActivity() {
      * 把 `filled` 放最后会让所有 `button("x") { }` 的调用点编译不过（lambda 被当成 Boolean）。
      */
     private fun button(label: String, filled: Boolean = false, onClick: () -> Unit) {
-        val b = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonStyle).apply {
+        val b = MaterialButton(this, null, if (filled) com.google.android.material.R.attr.materialButtonStyle else android.R.attr.borderlessButtonStyle).apply {
             text = label
             textSize = 13.5f
             isAllCaps = false                 // 中文按钮千万别跟着英文规则全大写
@@ -698,9 +723,9 @@ class SettingsActivity : AppCompatActivity() {
                 // 设置页一屏几十个按钮，全用实心主色会吵得没法看。
                 // Material 1.12 没暴露 tonal 的 style 属性（materialButtonTonalStyle 不存在），所以自己染。
                 backgroundTintList = android.content.res.ColorStateList.valueOf(
-                    attr(com.google.android.material.R.attr.colorSecondaryContainer)
+                    0x00000000
                 )
-                setTextColor(attr(com.google.android.material.R.attr.colorOnSecondaryContainer))
+                setTextColor(cPrimary)
             }
             setOnClickListener { onClick() }
         }
@@ -710,7 +735,7 @@ class SettingsActivity : AppCompatActivity() {
     /** 统一的卡片底：MD3 靠**色阶差**分层，不靠阴影（深色下阴影几乎看不见） */
     private fun card(fill: Int = cContainerHigh): GradientDrawable = GradientDrawable().apply {
         setColor(fill)
-        cornerRadius = dp(16).toFloat()
+        cornerRadius = dp(20).toFloat()
     }
 
     private fun margins(): LinearLayout.LayoutParams = LinearLayout.LayoutParams(
