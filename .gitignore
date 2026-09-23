@@ -19,3 +19,4 @@ local.properties
 dist/
 *.log
 captures/
+keystore.properties

@@ -1,4 +1,4 @@
-﻿plugins {
+plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
@@ -30,6 +30,20 @@ android {
             keyAlias = "jevguide"
             keyPassword = "android"
         }
+
+        // 正式签名：读 keystore.properties（已在 .gitignore 里，绝不进仓库）。
+        // 文件不在就留空，debug 构建不受影响。
+        create("release") {
+            val props = java.util.Properties()
+            val f = rootProject.file("keystore.properties")
+            if (f.exists()) {
+                f.inputStream().use { props.load(it) }
+                storeFile = rootProject.file(props.getProperty("storeFile"))
+                storePassword = props.getProperty("storePassword")
+                keyAlias = props.getProperty("keyAlias")
+                keyPassword = props.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
@@ -39,6 +53,10 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
         release {
+            // 有 keystore.properties 就签正式名，没有就留空（debug 不受影响）
+            if (rootProject.file("keystore.properties").exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             /*
              * 这里**故意不开** R8/资源压缩。
              *
