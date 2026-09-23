@@ -24,7 +24,19 @@ data class Draft(val index: Int, val title: String, val text: String)
  */
 object ReplyPrompt {
 
+    /** 默认选中的三种（**不要动**：单测断言它，而且它是没配置时的行为） */
     val STYLE_TITLES = listOf("稳妥", "推进", "有趣")
+
+    /**
+     * 全部可选风格（顺序 = 设置页展示顺序）。
+     *
+     * 加风格时注意两件事：
+     *  - 这里加完，解析器的「光秃秃一行就是风格名」也认它（见 titleOf），否则模型写了
+     *    【撒娇】会被当成正文，整段错位；
+     *  - 每套说明都要写清**适用边界**。风格只决定「怎么说话」，不放松「什么能说」——
+     *    【硬性约束】那一段是所有风格共用的。
+     */
+    val ALL_STYLE_TITLES = listOf("稳妥", "推进", "有趣", "撒娇", "冷淡", "正经", "长辈")
 
     /**
      * 每种风格的一句话说明（设置页展示 + 拼进提示词，保证两处口径一致）。
@@ -32,15 +44,23 @@ object ReplyPrompt {
      * 写法要求：必须**可执行**。「接住对方」「不冒险」这种抽象词模型理解不了，
      * 它会自己脑补成客服腔。要说清「给什么、不给什么」。
      */
-    private val STYLE_HINTS = listOf(
-        "先接住对方的情绪或信息，再给一个明确具体的回应；不追问、不冒险，短而稳",
-        "把话题往前推一步：给一个具体的时间、地点或动作，通常用问句收尾让对方好接",
-        "幽默的靶子只能是自己或当下的处境，绝不能是对方本人；优先自嘲、共情式夸张、顺着对方的话往上加码，一句话越短越好；禁网络烂梗（牛马/绝绝子/yyds）、禁给对方贴标签、禁解释笑点"
+    private val STYLE_HINTS = linkedMapOf(
+        "稳妥" to "先接住对方的情绪或信息，再给一个明确具体的回应；不追问、不冒险，短而稳",
+        "推进" to "把话题往前推一步：给一个具体的时间、地点或动作，通常用问句收尾让对方好接",
+        "有趣" to "幽默的靶子只能是自己或当下的处境，绝不能是对方本人；优先自嘲、共情式夸张、顺着对方的话往上加码，一句话越短越好；禁网络烂梗（牛马/绝绝子/yyds）、禁给对方贴标签、禁解释笑点",
+        "撒娇" to "把姿态放软：叠词、拖长音、小小地抱怨或提要求，让对方想哄你。**只适合已经很亲密的关系**，不熟用会尴尬；不许用「你怎么不理我」这种质问式绑架，也不许涉及身体或性暗示",
+        "冷淡" to "话少、不主动追问、不带情绪，用短句把话接住就停；用来降温或对等回应。注意：冷淡**不等于**冷暴力、阴阳怪气、翻旧账，不骂人、不暗示威胁",
+        "正经" to "就事论事，把信息说清楚（时间、地点、安排、结论），不闲聊不开玩笑；适合工作、办事、和不太熟的人对接。仍然要像人话，不是公文",
+        "长辈" to "对长辈或家人：先报平安或回应关心，再说具体安排，多一句问候；不用网络用语和缩写，不顶嘴、不敷衍，也不用撒娇那套"
     )
 
     /** 人类可读的三种风格说明，供设置页/提示词复用 */
-    fun styleGuide(): String =
-        STYLE_TITLES.mapIndexed { i, t -> "${i + 1}. 【$t】${STYLE_HINTS[i]}" }.joinToString("\n")
+    /** 全部风格的说明（设置页当参考清单用；buildSystem 只取选中的那几套） */
+    fun styleGuide(): String = styleGuide(ALL_STYLE_TITLES)
+
+    /** 只给指定风格生成说明，顺序按 [styles] 来 */
+    fun styleGuide(styles: List<String>): String =
+        styles.mapIndexed { i, t -> "${i + 1}. 【$t】${STYLE_HINTS[t] ?: ""}" }.joinToString("\n")
 
     /**
      * 组装 system 提示词：角色 + 三种风格 + 【记忆】+ 输出格式 + 硬性约束。
@@ -52,10 +72,19 @@ object ReplyPrompt {
      * @param lang "zh" 用中文提示词；"en" 用英文提示词，但**仍然要求输出中文文案**
      *             （英文提问只是为了拿更高的遵守率，成品必须是中文，不然发给对方就露馅了）
      */
-    fun buildSystem(memoryBlock: String, lang: String, extra: String = ""): String {
+    fun buildSystem(
+        memoryBlock: String,
+        lang: String,
+        extra: String = "",
+        styles: List<String> = STYLE_TITLES
+    ): String {
         // Memories.contextBlock 自己会带一个「【记忆】」抬头，这里别再套一层（否则提示词里出现两个标题）
         val memory = memoryBlock.trim().removePrefix("【记忆】").trim().ifEmpty { "（暂无记忆）" }
-        val base = if (lang == "en") systemEn(memory) else systemZh(memory)
+        // 选中的风格必须先过一遍白名单：配置里可能留着旧名字或错别字，
+        // 直接拼进提示词会让模型去写一个不存在的风格。全空则回落默认，保证至少有一种。
+        val picked = styles.map { it.trim() }.filter { it in ALL_STYLE_TITLES }.distinct()
+            .ifEmpty { STYLE_TITLES }
+        val base = if (lang == "en") systemEn(memory, picked) else systemZh(memory, picked)
         val add = extra.trim()
         if (add.isEmpty()) return base
         // 额外要求放在最末尾：模型对「最后一段」的注意力最高，而这段正是用户最在意的个性化部分。
@@ -64,7 +93,7 @@ object ReplyPrompt {
             "\n（以上额外要求不得改变输出格式与硬性约束。）"
     }
 
-    private fun systemZh(memory: String): String = buildString {
+    private fun systemZh(memory: String, styles: List<String>): String = buildString {
         append("你是「微信回复代笔」：直接写出用户可以原样发出去的回复，不是分析、不是建议。\n\n")
         append("【最重要的一条：像真人发微信】\n")
         append("- 短。一条 5~25 个字，最多两句。真人不会在微信里写小作文。\n")
@@ -88,11 +117,11 @@ object ReplyPrompt {
         append("√ 这么拼，明天记得找老板要加班费，要不我帮你要  ← 夸张的共情\n")
         append("一句话就够，别解释笑点。\n\n")
         append("【三种风格】\n")
-        append(styleGuide()).append("\n\n")
+        append(styleGuide(styles)).append("\n\n")
         append("【记忆】\n").append(memory).append("\n\n")
         append("【输出格式】\n")
-        append("只输出 ").append(STYLE_TITLES.size).append(" 段，每段第一行是标题行，形如")
-        append(STYLE_TITLES.joinToString("、") { "【$it】" })
+        append("只输出 ").append(styles.size).append(" 段，每段第一行是标题行，形如")
+        append(styles.joinToString("、") { "【$it】" })
         append("，其余行是正文；段与段之间用一行 --- 分隔。\n")
         append("不要解释、不要 markdown 代码块、不要编号列表。每段 1~3 句，直接可以发给对方的成品口吻。\n\n")
         append("【硬性约束】\n")
@@ -103,7 +132,7 @@ object ReplyPrompt {
         append("- 只输出候选回复本身，不要输出任何分析过程或前后缀说明。")
     }
 
-    private fun systemEn(memory: String): String = buildString {
+    private fun systemEn(memory: String, styles: List<String>): String = buildString {
         append("You are a \"WeChat reply ghostwriter\": you write finished replies the user can send as-is, not analysis and not advice.\n\n")
         append("[Most important: sound like a real person texting]\n")
         append("- Short. 5-25 characters, at most two sentences. Real people do not write essays on WeChat.\n")
@@ -124,8 +153,8 @@ object ReplyPrompt {
         append("3. [有趣] Playful: a light joke that makes them smile, without being creepy or crossing a line.\n\n")
         append("[Memory]\n").append(memory).append("\n\n")
         append("[Output format]\n")
-        append("Output exactly ").append(STYLE_TITLES.size).append(" sections. The first line of each section is a title line like ")
-        append(STYLE_TITLES.joinToString(", ") { "【$it】" })
+        append("Output exactly ").append(styles.size).append(" sections. The first line of each section is a title line like ")
+        append(styles.joinToString(", ") { "【$it】" })
         append("; the remaining lines are the reply body. Separate sections with a single line of ---.\n")
         append("No explanations, no markdown code fences, no numbered lists. Each section is 1-3 sentences in a finished, send-ready tone.\n")
         append("Write the drafts in Chinese.\n\n")
@@ -331,7 +360,8 @@ object ReplyPrompt {
         }
         // 没有【】时也认"光秃秃一行就是风格名"（"## 稳妥"、"**稳妥**"）
         val bare = cleanTitle(line)
-        return if (bare in STYLE_TITLES) bare to "" else null
+        // 必须认**全部**风格名：只认默认三种的话，模型写【撒娇】会被当成正文，整段错位
+        return if (bare in ALL_STYLE_TITLES) bare to "" else null
     }
 
     private fun cleanTitle(s: String): String =

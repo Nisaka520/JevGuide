@@ -340,6 +340,18 @@ class SettingsActivity : AppCompatActivity() {
                 "记忆：每个联系人一份，只存在本机 filesDir/memory/ 下；攒够若干条新对话后自动刷新摘要与关键事实。\n" +
                 "记忆会作为「背景」一起交给 Jev 和聊天模型 —— 关掉它，每次分析都等于第一次聊。"
         )
+        val styleBox = edit(cfg.stylesCsv, "稳妥,推进,有趣")
+        body(
+            "要哪几种风格（逗号分隔，最多 5 种）。可选：" +
+                ReplyPrompt.ALL_STYLE_TITLES.joinToString("、") +
+                "\n判读时会按这里列出的风格各出一条，所以填几种就多几段输出、也多花一点时间。"
+        )
+        button("保存风格选择") {
+            val want = styleBox.text.toString().trim()
+            cfg.stylesCsv = want
+            val got = cfg.styles()
+            toast("已保存：" + got.joinToString("、") + if (got.size != want.split(',', '，', '、').count { it.isNotBlank() }) "（有不认识的名字被忽略了）" else "")
+        }
         switchRow("问 Jev 要「攻略度」评分", cfg.guideEnabled) { cfg.guideEnabled = it }
         switchRow("启用本地记忆", cfg.memoryEnabled) { cfg.memoryEnabled = it }
         spinner(
@@ -543,7 +555,7 @@ class SettingsActivity : AppCompatActivity() {
         }
         body(
             "当前发给聊天模型的完整提示词（只读；上面填的额外要求会接在最后）：\n\n" +
-                ReplyPrompt.buildSystem("（暂无记忆）", cfg.lang, cfg.promptExtra)
+                ReplyPrompt.buildSystem("（暂无记忆）", cfg.lang, cfg.promptExtra, cfg.styles())
         )
 
         section("维护", "about")

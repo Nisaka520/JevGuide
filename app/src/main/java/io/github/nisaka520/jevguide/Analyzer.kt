@@ -193,7 +193,7 @@ object Analyzer {
     private fun generateDrafts(cfg: Config, memBlock: String, lines: List<String>, state: String): List<Draft> = try {
         val r = ChatHttp.complete(
             cfg.chatBaseUrl, cfg.chatApiKey, cfg.chatModel,
-            ReplyPrompt.buildSystem(memBlock, cfg.lang, cfg.promptExtra),
+            ReplyPrompt.buildSystem(memBlock, cfg.lang, cfg.promptExtra, cfg.styles()),
             ReplyPrompt.buildUser(lines, state, cfg.draftsN)
         )
         when (r) {

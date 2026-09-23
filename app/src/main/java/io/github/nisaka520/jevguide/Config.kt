@@ -1,4 +1,4 @@
-package io.github.nisaka520.jevguide
+﻿package io.github.nisaka520.jevguide
 
 import android.content.Context
 
@@ -109,6 +109,21 @@ class Config(ctx: Context) {
     var draftsN: Int
         get() = sp.getInt("drafts_n", 3).coerceIn(1, 5)
         set(v) = sp.edit().putInt("drafts_n", v.coerceIn(1, 5)).apply()
+
+    /** 选中的风格，逗号分隔。默认就是原来的三种 */
+    var stylesCsv: String
+        get() = sp.getString("styles_csv", "稳妥,推进,有趣").orEmpty()
+        set(v) = sp.edit().putString("styles_csv", v).apply()
+
+    /**
+     * 解析成风格列表：逗号（中英文都认）分隔、去空白、丢不认识的名字、去重。
+     * 全空或全是不认识的名字 → 回落默认三种，**保证永远至少有一种可用**。
+     */
+    fun styles(): List<String> {
+        val known = ReplyPrompt.ALL_STYLE_TITLES
+        val picked = stylesCsv.split(',', '，', '、', ' ').map { it.trim() }.filter { it in known }.distinct()
+        return picked.ifEmpty { ReplyPrompt.STYLE_TITLES }
+    }
 
     // ══════════════════ 攻略度 & 记忆 ══════════════════
 
