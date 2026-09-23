@@ -118,4 +118,39 @@ class StylePlanTest {
         assertEquals("推进", d[0].title)
         assertEquals("我十分钟后给你结果。", d[0].text)
     }
+
+    // ---------- 真模型实测原样贴回来（glm-5.3-flash，reasoning_effort=low） ----------
+
+    /**
+     * 下面五段是**真模型实际吐出来的原文**，不是编的。实测里三种排版都出现过：
+     * 标题独占一行 / 标题和正文同一行 / 空行里夹着 --- 。
+     * 用真输出当回归用例，比手写的"标准格式"更能挡住真实世界的花样。
+     */
+    @Test
+    fun realModelOutputParsesCleanlyForEveryStyle() {
+        val samples = mapOf(
+            "撒娇" to "【撒娇】有空呀，正好想跟你出去逛逛，看完得请我喝奶茶哦\n---\n" +
+                "【撒娇】有空的嘛，不过你来了团子在家没人陪它拆家了怎么办呀\n---\n" +
+                "【撒娇】明天下班我都在，不过去之前先说好，我走累了你可要背我哦",
+            "冷淡" to "【冷淡】\n有啊，明天几点\n\n---\n\n【冷淡】\n嗯可以，展在哪\n\n---\n\n【冷淡】\n行，明天团子又拆家了？",
+            "推进" to "【推进】\n明天可以呀，下午两点展馆门口见？\n\n【推进】\n有空！几点开场，我去接你\n\n" +
+                "【推进】\n好呀，正好你出差前陪我逛逛，下午走？",
+            "长辈" to "【长辈】\n不太忙，您放心，周末我回去喝汤\n\n【长辈】\n妈，还行，不算太累，汤我惦记着呢，周末回\n\n" +
+                "【长辈】\n不忙不忙，这周就忙那两天，周日回去吃饭",
+            "有趣" to "【有趣】\n有空，正好出来躲躲团子拆家现场\n\n【有趣】\n行啊，看完展回家你负责收拾团子的残局\n\n" +
+                "【有趣】\n必须有空，谁让你家的猫先动的手"
+        )
+        for ((style, raw) in samples) {
+            val d = ReplyPrompt.parse(raw, 3)
+            assertEquals("【" + style + "】该解析出 3 条", 3, d.size)
+            assertEquals("【" + style + "】三条标题都该是风格名", List(3) { style }, d.map { it.title })
+            for (x in d) {
+                assertTrue("【" + style + "】正文不能是空的", x.text.isNotEmpty())
+                assertFalse(
+                    "【" + style + "】正文里不能残留标题或分隔线：" + x.text,
+                    x.text.contains("【") || x.text.contains("---")
+                )
+            }
+        }
+    }
 }
