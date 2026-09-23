@@ -1,4 +1,4 @@
-package io.github.nisaka520.jevguide
+﻿package io.github.nisaka520.jevguide
 
 import android.content.Intent
 import android.content.res.ColorStateList
@@ -136,7 +136,7 @@ class MainActivity : AppCompatActivity() {
             addView(inner)
             setOnClickListener {
                 startActivity(
-                    Intent(this@MainActivity, SettingsActivity::class.java).putExtra("section", section)
+                    Intent(this@MainActivity, SettingsActivity::class.java).putExtra("screen", section)
                 )
             }
         }

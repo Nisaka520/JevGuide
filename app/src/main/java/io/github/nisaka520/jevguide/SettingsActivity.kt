@@ -40,8 +40,8 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var lastText: TextView
     private lateinit var logText: TextView
 
-    /** 分区 key → page 里的子 View 下标（首页带着 section 参数进来时用来滚动定位） */
-    private val sectionIndex = HashMap<String, Int>()
+    /** 每个分区标题在 page 里的下标 → 它属于哪一屏。首页进来时按这个把别屏的分区删掉 */
+    private val sectionRuns = ArrayList<Pair<Int, String>>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -65,16 +65,7 @@ class SettingsActivity : AppCompatActivity() {
         }
         setContentView(scroll)
         buildStatic()
-        // 首页点某个入口进来时，直接滚到对应分区。
-        // 用 post 是因为这时还没布局，child.top 全是 0，得等第一帧量完再滚。
-        val wantSection = intent.getStringExtra("section").orEmpty()
-        if (wantSection.isNotEmpty()) {
-            scroll.post {
-                val i = sectionIndex[wantSection] ?: return@post
-                val child = page.getChildAt(i) ?: return@post
-                scroll.smoothScrollTo(0, (child.top - dp(12)).coerceAtLeast(0))
-            }
-        }
+        applyScreen(intent.getStringExtra("screen").orEmpty())
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             try {
                 requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
@@ -189,7 +180,7 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         // 判读设置
-        section("判读设置")
+        section("判读设置", "key")
         spinner("题目语言", Prompt.LANG_LABELS, Prompt.LANGS.indexOf(cfg.lang).coerceAtLeast(0)) {
             cfg.lang = Prompt.LANGS[it]
             toast("题目语言 → " + cfg.lang)
@@ -221,7 +212,7 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         // 聊天模型（生成候选文案）
-        section("聊天模型（生成候选回复文案）")
+        section("聊天模型（生成候选回复文案）", "key")
         sub(
             "判读由 Jev 负责；回复文案由这个通用聊天模型生成（任何 OpenAI 兼容端点都行）。\n" +
                 "地址填到 /v1 为止，例如：https://api.deepseek.com/v1 ｜ https://api.openai.com/v1 ｜ 你自己的中转站。\n" +
@@ -349,7 +340,7 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         // 读取方式
-        section("读取方式（无障碍树 / 视觉模型）")
+        section("读取方式（无障碍树 / 视觉模型）", "a11y")
         sub(
             "微信 8.0.76 起**屏蔽了无障碍树**：实测连系统自带的 uiautomator 抓微信都是 0 个文字节点\n" +
                 "（系统设置能读到 15 个、桌面能读到 280 行 —— 所以不是本 App 的问题，是微信不给）。\n" +
@@ -401,7 +392,7 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         // 常驻悬浮条
-        section("常驻悬浮条（把攻略度挂在屏幕上）")
+        section("常驻悬浮条（把攻略度挂在屏幕上）", "a11y")
         sub(
             "判读出来的攻略度会一直挂成一个小条（浮在微信上面），而不是弹个窗看一眼就没了。\n" +
                 "操作：**拖动**挪位置（位置会记住）｜**点一下**打开结果页看 3 条文案（还没有结果时点一下就是判读一次）｜**长按**隐藏。\n" +
@@ -457,7 +448,7 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         // 抓屏诊断
-        section("抓屏诊断（读不到消息时用这个）")
+        section("抓屏诊断（读不到消息时用这个）", "a11y")
         sub(
             "用法：在微信聊天页拉下通知栏点「诊断抓屏」；或者点下面这个按钮，然后 3 秒内切回微信。\n" +
                 "导出的是当前窗口的节点结构（类名 / viewId / 坐标 / 文字标志），用来排查『为什么读不到消息』。\n" +
@@ -490,7 +481,7 @@ class SettingsActivity : AppCompatActivity() {
                 "请自行确认对方的隐私政策。请勿用于骚扰、跟踪或任何违法用途。"
         )
 
-        section("维护")
+        section("维护", "about")
         logText = body("")
         button("刷新日志") { refreshDynamic() }
         button("清空日志") {
@@ -599,6 +590,39 @@ class SettingsActivity : AppCompatActivity() {
      * 只有走主题属性才能拿到 Material You 从壁纸算出来的配色 —— 否则会出现
      * "Material 控件跟着壁纸变色、我手搓的标题还是老青绿"这种最难看的不一致。
      */
+    /**
+     * 只留下属于 [screen] 这一屏的分区，其余整段删掉，并在最上面加一行「返回首页」。
+     *
+     * 为什么不是「滚到对应分区」：那样五个入口进去看到的是**同一张长表单**，
+     * 用户会觉得点哪个都一样（用户原话：进去后再没有修改前的一个统一界面）。
+     * 现在每个入口是一张独立页面：标题、内容、长度都不一样。
+     *
+     * 归属判定：每个子 View 属于「它前面最近的那个分区标题」；第一个分区之前的
+     * （大标题、总说明）在指定了 screen 时一并删掉 —— 各屏自己有标题。
+     */
+    private fun applyScreen(screen: String) {
+        if (screen.isEmpty()) return
+        if (sectionRuns.none { it.second == screen }) return
+        val keep = HashSet<Int>()
+        var current = ""
+        for (i in 0 until page.childCount) {
+            sectionRuns.firstOrNull { it.first == i }?.let { current = it.second }
+            if (current == screen) keep.add(i)
+        }
+        // 从后往前删：否则删掉一个，后面所有下标都往前挪一位
+        for (i in page.childCount - 1 downTo 0) {
+            if (i !in keep) page.removeViewAt(i)
+        }
+        // 顶上加一行返回：系统返回键也能用，但页面上得有个看得见的出口
+        page.addView(TextView(this).apply {
+            text = "← 返回首页"
+            setTextColor(cPrimary)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            setPadding(0, dp(4), 0, dp(8))
+            setOnClickListener { finish() }
+        }, 0)
+    }
+
     private fun attr(@androidx.annotation.AttrRes id: Int, fallback: Int = R.color.text): Int {
         val tv = TypedValue()
         return if (theme.resolveAttribute(id, tv, true) && tv.data != 0) tv.data else color(fallback)
@@ -618,15 +642,18 @@ class SettingsActivity : AppCompatActivity() {
         setPadding(0, dp(8), 0, dp(4))
     })
 
-    /** 分区标题。key 非空时记下它在 page 里的下标，首页点进来可以直接滚到这一节 */
-    private fun section(t: String, key: String = "") = page.addView(TextView(this).apply {
+    /**
+     * 分区标题。screen 非空表示「这个分区属于哪一屏」：首页点某个入口进来时，
+     * 只保留属于那一屏的分区，其余整段删掉。
+     */
+    private fun section(t: String, screen: String = "") = page.addView(TextView(this).apply {
         text = t
         setTextColor(cPrimary)
         setTextSize(TypedValue.COMPLEX_UNIT_SP, 16.5f)
         typeface = android.graphics.Typeface.DEFAULT_BOLD
         setPadding(0, dp(22), 0, dp(4))
     }).also {
-        if (key.isNotEmpty()) sectionIndex[key] = page.childCount - 1
+        sectionRuns.add(page.childCount - 1 to screen)
     }
 
     private fun sub(t: String) = page.addView(TextView(this).apply {
