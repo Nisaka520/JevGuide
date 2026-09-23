@@ -14,16 +14,16 @@
 
 ### 几个仓库的关系
 
-| 仓库 | 是什么 | 历史 |
-|---|---|---|
-| **`Nisaka520/JevGuide`（本仓库）** | 弦外之音的**对外发布**：源码 + 文档 + 单测 | 从 **v1.3.0** 起，单一「首次公开」提交 |
-| 本地开发仓库 | 同一份源码树，另外带着几十次开发提交（大量「真机实测 → 改 → 再测」的来回） | 完整开发历史，不对外 |
-| [`Nisaka520/JevBystander`](https://github.com/Nisaka520/JevBystander) | 同门：只读屏判读，不常驻、不生成回复 | 独立项目 |
-| [`Nisaka520/JevIntent`](https://github.com/Nisaka520/JevIntent) | 同门：FkWeChat 的 Xposed 插件（要 root） | 独立项目 |
+| 仓库 | 是什么 |
+|---|---|
+| **`Nisaka520/JevGuide`（本仓库）** | 弦外之音：源码 + 文档 + 单测，**带完整开发历史**（从 v1.0.0 起，几十次「真机实测 → 改 → 再测」的来回都在里面） |
+| [`Nisaka520/JevBystander`](https://github.com/Nisaka520/JevBystander) | 同门：只读屏判读，不常驻、不生成回复 |
+| [`Nisaka520/JevIntent`](https://github.com/Nisaka520/JevIntent) | 同门：FkWeChat 的 Xposed 插件（要 root） |
 
-- 对外这份是**同一个源码树**，不是精简版：`docs/`、`test/`、单测全在，方便自己编译与核对
-- **密钥与 release 签名不进仓库**：`keystore.properties` 与 `*.jks` 都被 `.gitignore` 挡掉；
-  仓库里唯一的签名文件是 `keystore/debug.keystore` —— 那是**公开的调试签名**，故意提交的
+- 三个仓库都是**独立项目**，只共享同一套「读屏 + 调接口」的口径；弦外之音从 JevBystander 的读屏底座拆出来
+- **密钥与 release 签名不在仓库里，历史里也没有**（推之前逐提交扫过一遍）：
+  `keystore.properties` 与 `*.jks` 都被 `.gitignore` 挡掉；仓库里唯一的签名文件是
+  `keystore/debug.keystore` —— 那是**公开的调试签名**，故意提交的
   （本地与 CI 共用它，换一把就会报「应用未安装」）
 - 提交前跑一遍 `python test/check_secrets.py`
 
