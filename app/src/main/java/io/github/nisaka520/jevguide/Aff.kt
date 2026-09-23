@@ -1,4 +1,4 @@
-package io.github.nisaka520.jevguide
+﻿package io.github.nisaka520.jevguide
 
 /**
  * 邀请码 / 推广链接集中地 —— **要改就只改这个文件**。
@@ -8,7 +8,7 @@ package io.github.nisaka520.jevguide
  * 把下面每个厂商的值换成你自己的邀请链接（整条 URL，不是只填码），例如：
  *
  * ```kotlin
- * "zhipu"       to "https://www.bigmodel.cn/glm-coding?ic=你的码",
+ * "zhipu"       to "https://www.bigmodel.cn/invite?icode=你的码",
  * "siliconflow" to "https://cloud.siliconflow.cn/i/你的码",
  * ```
  *
@@ -30,7 +30,9 @@ object Aff {
     /** key = [Provider.id]。空串或空白 = 用官方入口 */
     private val links: Map<String, String> = mapOf(
         // ── 有邀请返利的，把你的链接填在这里 ──
-        "zhipu" to "",        // 例：https://www.bigmodel.cn/glm-coding?ic=XXXX
+        // 智谱的「邀请好友」入口。icode 里的 %2F %2B 是 URL 编码过的 / 和 +，
+        // 必须原样保留，别手动解码 —— 解了以后链接就失效了。
+        "zhipu" to "https://www.bigmodel.cn/invite?icode=nGBxEgS2nDIiO2pfff%2F%2BN33uFJ1nZ0jLLgipQkYjpcA%3D",
         "siliconflow" to "",  // 例：https://cloud.siliconflow.cn/i/XXXX
         "dashscope" to "",    // 阿里云百炼的邀请链接
         "kimi" to "",         // 月之暗面的邀请链接
