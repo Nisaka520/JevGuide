@@ -141,7 +141,7 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         // 密钥
-        section("接口密钥", "key")
+        section("三方模型（调 Jev 算攻略度）", "key", 0xFF6FD3C7.toInt())
         sub("填自己的 TypeSafe/Jev 密钥（apikey_… 开头，约 100 字符）。没有的话：console.typesafe.ai 用 Google 或邮箱验证码登录 → API Keys → 新建，复制过来贴上。")
         val key = edit(cfg.apiKey, "apikey_…（只存在本机）", password = true)
         button("保存密钥", filled = true) {
@@ -198,7 +198,7 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         // 判读设置
-        section("判读设置", "key")
+        section("判读设置", "a11y")
         spinner("题目语言", Prompt.LANG_LABELS, Prompt.LANGS.indexOf(cfg.lang).coerceAtLeast(0)) {
             cfg.lang = Prompt.LANGS[it]
             toast("题目语言 → " + cfg.lang)
@@ -230,7 +230,7 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         // 聊天模型（生成候选文案）
-        section("聊天模型（生成候选回复文案）", "key")
+        section("聊天模型（生成候选回复文案）", "key", 0xFF7FB3FF.toInt())
         sub(
             "判读由 Jev 负责；回复文案由这个通用聊天模型生成（任何 OpenAI 兼容端点都行）。\n" +
                 "地址填到 /v1 为止，例如：https://api.deepseek.com/v1 ｜ https://api.openai.com/v1 ｜ 你自己的中转站。\n" +
@@ -358,7 +358,7 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         // 读取方式
-        section("读取方式（无障碍树 / 视觉模型）", "a11y")
+        section("识图模型（截图转文字）", "key", 0xFFB79CFF.toInt())
         sub(
             "微信 8.0.76 起**屏蔽了无障碍树**：实测连系统自带的 uiautomator 抓微信都是 0 个文字节点\n" +
                 "（系统设置能读到 15 个、桌面能读到 280 行 —— 所以不是本 App 的问题，是微信不给）。\n" +
@@ -664,15 +664,38 @@ class SettingsActivity : AppCompatActivity() {
      * 分区标题。screen 非空表示「这个分区属于哪一屏」：首页点某个入口进来时，
      * 只保留属于那一屏的分区，其余整段删掉。
      */
-    private fun section(t: String, screen: String = "") = page.addView(TextView(this).apply {
+    private fun section(t: String, screen: String = "", accent: Int = 0) = page.addView(TextView(this).apply {
         text = t
-        setTextColor(cPrimary)
         setTextSize(TypedValue.COMPLEX_UNIT_SP, 16.5f)
         typeface = android.graphics.Typeface.DEFAULT_BOLD
-        setPadding(0, dp(22), 0, dp(4))
+        if (accent == 0) {
+            setTextColor(cPrimary)
+            setPadding(0, dp(22), 0, dp(4))
+        } else {
+            // 模型配置那三块用「带色底的分组头」区分：色底是 14% 的强调色 + 1dp 描边，
+            // 不刺眼但一眼能看出这是三组不同的东西，而不是一长串同款设置项。
+            setTextColor(accent)
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(22); bottomMargin = dp(2) }
+            background = GradientDrawable().apply {
+                setColor(withAlpha(accent, 0.14f))
+                cornerRadius = dp(14).toFloat()
+                setStroke(dp(1), withAlpha(accent, 0.35f))
+            }
+        }
     }).also {
         sectionRuns.add(page.childCount - 1 to screen)
     }
+
+    /** 把颜色按比例压成半透明（M3 的 container 色本质就是主色降透明度） */
+    private fun withAlpha(color: Int, f: Float): Int = android.graphics.Color.argb(
+        (255 * f).toInt(),
+        android.graphics.Color.red(color),
+        android.graphics.Color.green(color),
+        android.graphics.Color.blue(color)
+    )
 
     private fun sub(t: String) = page.addView(TextView(this).apply {
         text = t
