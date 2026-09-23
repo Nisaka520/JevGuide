@@ -1,4 +1,4 @@
-﻿# Jev攻略（JevGuide）
+# Jev攻略（JevGuide）
 
 微信聊天里的**关系进展助手**：读屏 → Jev 判读 + 攻略度评分 → 聊天模型出 3 条候选回复，攻略度**常驻挂在屏幕上**。
 
@@ -199,7 +199,7 @@ HTTP 400  {"detail": "Too many score levels. Must have at most 10 levels."}
 | 预设 | 地址 | 聊天模型 | 能看图 | 备注 |
 |---|---|---|---|---|
 | DeepSeek（官方，便宜） | `https://api.deepseek.com/v1` | `deepseek-chat` | ✗ | 生成文案最划算；视觉读屏要另配一家 |
-| 智谱 GLM | `https://open.bigmodel.cn/api/paas/v4` | `glm-4-flash` | ✓ `glm-4v-flash` | 有免费额度；注意是 `/v4` 不是 `/v1` |
+| 智谱 GLM | `https://open.bigmodel.cn/api/paas/v4` | `glm-5.3-flash` | ✓ `glm-5.3-flash` | 有免费额度；注意是 `/v4` 不是 `/v1` |
 | 硅基流动 | `https://api.siliconflow.cn/v1` | `Qwen/Qwen2.5-7B-Instruct` | ✓ | 聚合开源模型，模型名要带 `厂商/` |
 | 阿里云百炼 | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` | ✓ `qwen-vl-max` | 必须走 compatible-mode 这个地址 |
 | 月之暗面 Kimi | `https://api.moonshot.cn/v1` | `moonshot-v1-8k` | ✓ | 长上下文是强项 |
@@ -252,7 +252,7 @@ HTTP 400  {"detail": "Too many score levels. Must have at most 10 levels."}
 | 项 | 默认 | 说明 |
 |---|---|---|
 | 地址 | `https://api.deepseek.com/v1` | **要填到 `/v1`** |
-| 模型 | `deepseek-chat` | 任意 OpenAI 兼容模型名 |
+| 模型 | `glm-5.3-flash` | 任意 OpenAI 兼容模型名 |
 | 生成候选文案 | 开 | 关掉只做判读，省一次调用 |
 | 生成几条 | 3 | 1~5 |
 
