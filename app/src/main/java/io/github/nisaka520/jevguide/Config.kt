@@ -205,6 +205,29 @@ class Config(ctx: Context) {
     /** 聊天模型是否可用（与 Jev 同判据：≥20 字符） */
     fun hasChatKey(): Boolean = chatApiKey.length >= 20
 
+    // ══════════════════ 厂商预设 ══════════════════
+
+    /** 上次选的厂商 id（[Providers.ALL] 里的那个） */
+    var providerId: String
+        get() = sp.getString("provider_id", "deepseek").orEmpty().ifEmpty { "deepseek" }
+        set(v) = sp.edit().putString("provider_id", v).apply()
+
+    /**
+     * 套用一家厂商的预设：地址 + 聊天模型 + 视觉模型。
+     *
+     * 刻意**不动密钥**：换厂商时把用户已经粘好的密钥清掉是最讨厌的行为之一
+     * （万一是同一家的第二个账号呢）。界面上会提示"记得换成这一家的密钥"。
+     * 视觉端点也留空，让它跟聊天模型共用同一套（同一家通常同一把密钥）。
+     */
+    fun applyProvider(p: Provider) {
+        providerId = p.id
+        if (p.baseUrl.isNotBlank()) chatBaseUrl = p.baseUrl
+        if (p.chatModel.isNotBlank()) chatModel = p.chatModel
+        visionBaseUrl = ""
+        visionApiKey = ""
+        visionModel = p.visionModel
+    }
+
     fun contacts(): List<Contact> = Contacts.fromJson(contactsJson)
 
     fun saveContacts(list: List<Contact>) {

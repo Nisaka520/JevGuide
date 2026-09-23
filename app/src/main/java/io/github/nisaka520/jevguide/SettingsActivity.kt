@@ -182,6 +182,58 @@ class SettingsActivity : Activity() {
                 "地址填到 /v1 为止，例如：https://api.deepseek.com/v1 ｜ https://api.openai.com/v1 ｜ 你自己的中转站。\n" +
                 "它的密钥跟 Jev 的密钥是两回事，也只存在本机。"
         )
+
+        // ── 厂商预设：选一家就自动填好地址和两个模型，省得用户猜 /v1 和模型名 ──
+        sub(
+            "**懒得填就直接选一家**：地址、聊天模型、视觉模型都会自动填好，你只需要去粘密钥。\n" +
+                "模型名会随厂商更新，报错就去控制台复制当前的名字。"
+        )
+        var chosen = Providers.byId(cfg.providerId)
+        spinner("模型厂商", Providers.labels(), Providers.indexOf(cfg.providerId)) { idx ->
+            // ⚠ Spinner 会在设置监听器后**为初始选中项补发一次回调**，而这里要 recreate() 刷新输入框，
+            // 不加这层判断就会「回调 → recreate → onCreate → 补发回调 → …」无限重建。
+            // 用"和已存的一致就什么都不做"来挡，天然幂等。
+            val p = Providers.ALL.getOrElse(idx) { Providers.CUSTOM }
+            if (!Providers.isSameAs(cfg.providerId, idx)) {
+                cfg.applyProvider(p)
+                chosen = p
+                toast("已套用 ${p.name}：地址 + 模型都填好了，记得粘这一家的密钥")
+                recreate()
+            }
+        }
+        if (chosen !== Providers.CUSTOM) {
+            sub("当前：**${chosen.name}**\n${chosen.note}\n密钥长这样：${chosen.keyHint}")
+            // 别骗人：地址是自建中转站时，下拉框还停在预设名上会让人以为配错了
+            if (Providers.detectByUrl(cfg.chatBaseUrl) == null) {
+                sub(
+                    "⚠ 但你现在保存的地址（${cfg.chatBaseUrl}）**不属于任何内置预设** —— " +
+                        "说明你在用自建/中转站，那就以下面输入框里的地址为准，下拉框只是预设入口。"
+                )
+            }
+            button("去申请密钥 / 打开控制台") {
+                val url = Aff.keyUrl(chosen)
+                if (url.isBlank()) {
+                    toast("这家没有在线申请页，看文档吧")
+                } else {
+                    try {
+                        startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+                    } catch (t: Throwable) {
+                        toast("打不开浏览器，地址：$url", true)
+                    }
+                }
+            }
+            if (Aff.hasLink(chosen.id)) {
+                sub("上面那个入口**带作者的邀请码**：你注册后作者会拿到少量额度奖励，不影响你的价格与权益。")
+            }
+        }
+        if (Aff.anyConfigured()) {
+            sub(
+                "关于链接里的邀请码：本 App 是开源免费的，部分厂商入口带了作者邀请码 —— " +
+                    "你通过它注册，作者会获得少量额度奖励，**你的价格和权益不受任何影响**。" +
+                    "不想带码的话，直接去厂商官网自己注册也一样能用。"
+            )
+        }
+
         val chatBase = edit(cfg.chatBaseUrl, "https://api.deepseek.com/v1")
         val chatKey = edit(cfg.chatApiKey, "sk-…（只存在本机）", password = true)
         val chatModel = edit(cfg.chatModel, "deepseek-chat")
@@ -439,6 +491,9 @@ class SettingsActivity : Activity() {
                     else -> "自动（无障碍优先，读空转视觉）"
                 }
             ).append('\n')
+            append("厂商：").append(Providers.byId(cfg.providerId).name)
+            if (cfg.visionModel.isBlank()) append("（没配读图模型，视觉读屏会退回用聊天模型）")
+            append('\n')
             append("当前设置：").append(cfg.lang).append(" · ").append(cfg.model)
             append(" · 情绪 ").append(cfg.emotionTop).append(" 条 · 上下文 ").append(cfg.contextN).append(" 句")
             append(" · 自动判读 ").append(if (cfg.autoAnalyze) "开" else "关")

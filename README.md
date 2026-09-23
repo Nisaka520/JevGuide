@@ -190,6 +190,35 @@ HTTP 400  {"detail": "Too many score levels. Must have at most 10 levels."}
 
 ---
 
+## 内置厂商（省得你猜地址和模型名）
+
+真正的门槛不是密钥，是"地址填到哪一级、模型叫什么" —— 填了 `https://api.deepseek.com`（少个 `/v1`）就 404，
+把 `deepseek-chat` 填到智谱的地址上照样报错。所以内置了国内 7 家预设：
+选中一家 → 自动填好**地址 + 聊天模型 + 视觉模型** → 你只需要去控制台粘密钥。
+
+| 预设 | 地址 | 聊天模型 | 能看图 | 备注 |
+|---|---|---|---|---|
+| DeepSeek（官方，便宜） | `https://api.deepseek.com/v1` | `deepseek-chat` | ✗ | 生成文案最划算；视觉读屏要另配一家 |
+| 智谱 GLM | `https://open.bigmodel.cn/api/paas/v4` | `glm-4-flash` | ✓ `glm-4v-flash` | 有免费额度；注意是 `/v4` 不是 `/v1` |
+| 硅基流动 | `https://api.siliconflow.cn/v1` | `Qwen/Qwen2.5-7B-Instruct` | ✓ | 聚合开源模型，模型名要带 `厂商/` |
+| 阿里云百炼 | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` | ✓ `qwen-vl-max` | 必须走 compatible-mode 这个地址 |
+| 月之暗面 Kimi | `https://api.moonshot.cn/v1` | `moonshot-v1-8k` | ✓ | 长上下文是强项 |
+| 火山方舟 | `https://ark.cn-beijing.volces.com/api/v3` | 你的 `ep-…` | ✓ | 模型名要先去控制台创建推理接入点 |
+| MiniMax | `https://api.minimax.chat/v1` | `abab6.5s-chat` | ✓ `MiniMax-VL-01` | 密钥是长 JWT，别只复制一半 |
+| 自定义 | 自己填 | 自己填 | — | 任何 OpenAI 兼容端点 |
+
+- **模型名会过时**（厂商改名比 App 发版快），所以输入框始终可改：报错就去控制台复制当前的名字
+- **不骗人**：地址认不出是哪家时（自建/中转站），界面会明说"不属于任何内置预设"，不会假装是某一家
+  （认域名时按域名边界匹配，`api.deepseek.com.evil.com` 不会被当成 DeepSeek）
+- 换厂商**不会清掉你已经粘好的密钥**（万一是同一家的第二个账号呢），界面只提示"记得换成这一家的"
+
+### 关于邀请码
+
+部分厂商入口带作者的邀请码：**你注册后作者会拿到少量额度奖励，你的价格与权益不受任何影响**；
+不想带码就直接去厂商官网注册，功能完全一样。所有链接集中在源码 `Aff.kt`，一处可改可清（留空＝用官方入口）。
+
+---
+
 ## 配置速查
 
 ### 读取方式
