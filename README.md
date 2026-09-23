@@ -1,4 +1,4 @@
-# 弦外之音（JevGuide）
+﻿# 弦外之音（JevGuide）
 
 微信聊天里的**关系进展助手**：读屏 → Jev 判读 + 攻略度评分 → 聊天模型出 3 条候选回复，攻略度**常驻挂在屏幕上**。
 
@@ -6,11 +6,26 @@
 
 | 项目 | 形态 | 干什么 | 要 root？ |
 |---|---|---|---|
-| **JevIntent** | FkWeChat 插件（Xposed） | 长按消息，弹 3 条判读提示 | 要 |
-| **JevBystander** | 独立 App（无障碍） | 读屏判读，弹 3 条提示 | 不要 |
-| **JevGuide（本项目）** | 独立 App（无障碍 + 视觉） | 判读 **+ 常驻攻略度 + 3 条能直接发的回复 + 每联系人长期记忆** | 不要 |
+| [**JevIntent**](https://github.com/Nisaka520/JevIntent) | FkWeChat 插件（Xposed） | 长按消息，弹 3 条判读提示 | 要 |
+| [**JevBystander**](https://github.com/Nisaka520/JevBystander) | 独立 App（无障碍） | 读屏判读，弹 3 条提示 | 不要 |
+| **弦外之音（JevGuide，本项目）** | 独立 App（无障碍 + 视觉） | 判读 **+ 常驻攻略度 + 3 条能直接发的回复 + 每联系人长期记忆** | 不要 |
 
 > 三个都只做「读屏 + 调接口」，不改微信、不发消息、不注入点击。
+
+### 几个仓库的关系
+
+| 仓库 | 是什么 | 历史 |
+|---|---|---|
+| **`Nisaka520/JevGuide`（本仓库）** | 弦外之音的**对外发布**：源码 + 文档 + 单测 | 从 **v1.3.0** 起，单一「首次公开」提交 |
+| 本地开发仓库 | 同一份源码树，另外带着几十次开发提交（大量「真机实测 → 改 → 再测」的来回） | 完整开发历史，不对外 |
+| [`Nisaka520/JevBystander`](https://github.com/Nisaka520/JevBystander) | 同门：只读屏判读，不常驻、不生成回复 | 独立项目 |
+| [`Nisaka520/JevIntent`](https://github.com/Nisaka520/JevIntent) | 同门：FkWeChat 的 Xposed 插件（要 root） | 独立项目 |
+
+- 对外这份是**同一个源码树**，不是精简版：`docs/`、`test/`、单测全在，方便自己编译与核对
+- **密钥与 release 签名不进仓库**：`keystore.properties` 与 `*.jks` 都被 `.gitignore` 挡掉；
+  仓库里唯一的签名文件是 `keystore/debug.keystore` —— 那是**公开的调试签名**，故意提交的
+  （本地与 CI 共用它，换一把就会报「应用未安装」）
+- 提交前跑一遍 `python test/check_secrets.py`
 
 ---
 
@@ -341,7 +356,9 @@ app/src/main/java/io/github/nisaka520/jevguide/
   Memory.kt           每联系人记忆（模型 + JSON + 文件持久化 + 上下文块）
   MemoryUpdater.kt    摘要压缩（调聊天模型，异步、失败无害）
   ChatHttp.kt         OpenAI 兼容客户端（纯逻辑解析，可单测）
-  ReplyPrompt.kt      3 条文案的提示词 + 宽容解析
+  ReplyPrompt.kt      3 条文案的提示词 + 宽容解析（含七套风格、标题与条数的唯一来源）
+  StylePick.kt        风格点选器的判定（纯函数：上限/下限，拒绝时一点状态都不动）
+  Emphasis.kt         把说明文字里的 **强调** 解析成加粗区间（纯函数）
   ScoreOverlay.kt     常驻悬浮条（无障碍浮层；format/colorOf 是纯逻辑，可单测）
   ResultActivity.kt   结果页（攻略度 + 判读 + 可复制的文案卡片）
   Toast3.kt           3 条 Toast 的排版与节流
@@ -365,5 +382,9 @@ app/src/main/java/io/github/nisaka520/jevguide/
 
 ## 版本
 
+- **v1.3.0**：改名「弦外之音」+ 换图标（蓝气泡里列三个选项）；提示词重写成「像真人发微信」；
+  回复风格七套里自选三套（点选块、点一下实时生效、上限拦三层）；补发布签名。
+  改动细节与真机验证结论见 [CHANGELOG](CHANGELOG.md)
+- **v1.2.0**：整套界面换 Material 3（含深色模式与跟随壁纸取色），浮条改胶囊形
 - **v1.1.0**：加视觉读屏（截图 → 视觉模型）与**常驻悬浮条**；修明文 HTTP 被拦
 - **v1.0.0**（首版）：从 JevBystander 拆出独立 App，加聊天模型（3 条文案）、攻略度百分比、每联系人本地记忆、结果页
