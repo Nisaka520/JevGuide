@@ -1,4 +1,4 @@
-package io.github.nisaka520.jevguide
+﻿package io.github.nisaka520.jevguide
 
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -27,7 +27,7 @@ object ChatHttp {
     /**
      * 发一次 chat 补全请求，成功时返回模型文本（已 trim）。
      *
-     * ⚠ base_url **要填到 /v1**，例如 `https://api.deepseek.com/v1` 或 `https://api.openai.com/v1`
+     * ⚠ base_url **要填到 /v1 或 /v4**，例如 `https://open.bigmodel.cn/api/paas/v4`（智谱是 /v4）
      * （末尾有没有 `/` 都行）。这里**不会**自动补 `/v1`：自动猜会让"填错地址"表现成"偶发 404"，
      * 排查成本远高于让用户照抄一次文档。已经填成完整的 `.../chat/completions` 时直接沿用，不再拼一层。
      *

@@ -85,9 +85,9 @@ class Config(ctx: Context) {
     // ══════════════════ 聊天模型（生成 3 条候选回复文案）══════════════════
     //
     // 与 Jev 分开配置：Jev 只负责"判读"（意图/情绪/攻略度），文案由这个通用聊天模型生成。
-    // 任何 OpenAI 兼容端点都能用（DeepSeek / OpenAI / 你自己的中转站），所以 base_url 可填。
+    // 任何 OpenAI 兼容端点都能用（智谱 GLM / 你自己的中转站），所以 base_url 可填。
 
-    /** OpenAI 兼容端点，**要填到 /v1**（例：https://api.deepseek.com/v1） */
+    /** OpenAI 兼容端点，**要填到 /v1 或 /v4**（例：https://open.bigmodel.cn/api/paas/v4 —— 智谱是 /v4，不是 /v1） */
     var chatBaseUrl: String
         get() = sp.getString("chat_base_url", DEFAULT_CHAT_BASE).orEmpty().ifEmpty { DEFAULT_CHAT_BASE }
         set(v) = sp.edit().putString("chat_base_url", v.trim()).apply()
@@ -256,7 +256,9 @@ class Config(ctx: Context) {
     fun clearAll() = sp.edit().clear().apply()
 
     companion object {
-        const val DEFAULT_CHAT_BASE = "https://api.deepseek.com/v1"
-        const val DEFAULT_CHAT_MODEL = "deepseek-chat"
+        // 默认一家走通全程：智谱的 glm-4-flash（文本）与 glm-4v-flash（视觉）都有免费额度，
+        // 一个密钥就够，用户不用先充钱。想换别家随时在设置里改。
+        const val DEFAULT_CHAT_BASE = "https://open.bigmodel.cn/api/paas/v4"
+        const val DEFAULT_CHAT_MODEL = "glm-4-flash"
     }
 }
