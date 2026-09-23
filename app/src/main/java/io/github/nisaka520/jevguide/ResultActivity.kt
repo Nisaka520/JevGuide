@@ -210,9 +210,6 @@ class ResultActivity : AppCompatActivity() {
             matchWrap(top = 18, bottom = 4)
         )
 
-        // 关闭：结果页最多就这一个按钮（用户要求）
-        root.addView(btn("关闭", filled = true) { finish() }, matchWrap(top = 6, bottom = 10))
-
         statusLine.text = buildString {
             append("Jev + 文案耗时 ").append(cost).append("ms")
             if (!chatReady) append(" · 未配聊天模型，只有判读")
