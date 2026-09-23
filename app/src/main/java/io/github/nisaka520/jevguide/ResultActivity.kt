@@ -1,4 +1,4 @@
-﻿package io.github.nisaka520.jevguide
+package io.github.nisaka520.jevguide
 
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -118,39 +118,6 @@ class ResultActivity : AppCompatActivity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(18), dp(20), dp(16))
-        }
-        // 结果页底部：随机一句与爱有关的古诗（Poems），不打扰，也不像广告。
-        // 链接不硬编：走 Aff.keyUrl(当前厂商)，没配邀请码时自动回退到官方入口，
-        // 等于顺带给用户一个「去哪儿申请密钥」的方便。
-        // ⚠ 这一行是可点的，所以带邀请码时仍保留一句极短的说明（披露不能靠藏）。
-        run {
-            val p = Providers.byId(cfg.providerId)
-            val url = Aff.keyUrl(p)
-            if (url.isNotBlank()) {
-                val pad = (14 * resources.displayMetrics.density).toInt()
-                val tv = TextView(this).apply {
-                    // 诗句随机轮换；带邀请码时只保留一句很短的说明，避免「看着像诗、点下去是推广」
-                    text = if (Aff.hasLink(p.id)) {
-                        Poems.random() + "\n（点这里去 ${p.name} 申请密钥 · 含作者邀请码）"
-                    } else {
-                        Poems.random()
-                    }
-                    textSize = 11.5f
-                    setPadding(0, pad, 0, 0)
-                    alpha = 0.75f
-                    isClickable = true
-                    setOnClickListener {
-                        try {
-                            startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)))
-                        } catch (t: Throwable) {
-                            android.widget.Toast.makeText(
-                                this@ResultActivity, "打不开浏览器：$url", android.widget.Toast.LENGTH_LONG
-                            ).show()
-                        }
-                    }
-                }
-                root.addView(tv)
-            }
         }
         setContentView(ScrollView(this).apply { addView(root) })
 
