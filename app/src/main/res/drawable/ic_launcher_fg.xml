@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 图标：一只"旁观"的眼睛轮廓（自绘矢量，非任何现成素材） -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 外圈 -->
+    <path
+        android:fillColor="#6FD3C7"
+        android:pathData="M54,32 C70,32 82,42 88,54 C82,66 70,76 54,76 C38,76 26,66 20,54 C26,42 38,32 54,32 Z M54,38 C42,38 32,45 27,54 C32,63 42,70 54,70 C66,70 76,63 81,54 C76,45 66,38 54,38 Z" />
+    <!-- 瞳孔 -->
+    <path
+        android:fillColor="#6FD3C7"
+        android:pathData="M54,46 m-9,0 a9,9 0 1,0 18,0 a9,9 0 1,0 -18,0" />
+    <!-- 一道"被读走的信息"横线 -->
+    <path
+        android:fillColor="#E5A25E"
+        android:pathData="M30,86 L78,86 L78,90 L30,90 Z" />
+</vector>

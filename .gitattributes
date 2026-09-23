@@ -1,0 +1,7 @@
+# 行尾统一：源码与 gradlew 一律 LF（CI 在 Linux 上跑，gradlew 带 CRLF 会 bad interpreter）
+* text=auto eol=lf
+gradlew text eol=lf
+*.bat text eol=crlf
+*.jar binary
+*.apk binary
+*.png binary

@@ -1,0 +1,487 @@
+package io.github.nisaka520.jevguide
+
+import android.Manifest
+import android.app.Activity
+import android.content.Intent
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
+import android.os.Build
+import android.os.Bundle
+import android.provider.Settings
+import android.text.InputType
+import android.util.TypedValue
+import android.view.Gravity
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ArrayAdapter
+import android.widget.Button
+import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.Spinner
+import android.widget.Switch
+import android.widget.TextView
+
+/**
+ * 设置页。整页用代码搭（零 AndroidX、无 XML 布局）——
+ * 这个 App 只有这一屏界面，为此引一整套 UI 库不值得。
+ *
+ * 页面结构：状态 → 接口密钥 → 关系（联系人表）→ 判读设置 → 维护（日志）。
+ */
+class SettingsActivity : Activity() {
+
+    private lateinit var cfg: Config
+    private lateinit var page: LinearLayout
+    private lateinit var statusText: TextView
+    private lateinit var lastText: TextView
+    private lateinit var logText: TextView
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        cfg = Config(this)
+        page = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(20), dp(16), dp(28))
+            setBackgroundColor(color(R.color.bg))
+        }
+        val scroll = ScrollView(this).apply { addView(page) }
+        setContentView(scroll)
+        buildStatic()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            try {
+                requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        refreshDynamic()
+    }
+
+    // ────────────────────────── 页面
+
+    private fun buildStatic() {
+        title("Jev攻略")
+        sub("长按不需要、悬浮窗不需要 —— 在微信里点一下，弹 3 条提示：意图/情绪、着急、建议。")
+
+        // 状态
+        section("状态")
+        statusText = body("")
+        lastText = body("")
+        button("打开无障碍设置") {
+            try {
+                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            } catch (e: Exception) {
+                AppLog.add("打不开无障碍设置：${e.message}")
+            }
+        }
+        button("立即判读一次") {
+            val svc = WatchService.instance
+            if (svc == null) {
+                toast("无障碍服务没在运行")
+            } else {
+                svc.analyzeNow(true)
+            }
+        }
+
+        // 密钥
+        section("接口密钥")
+        sub("填自己的 TypeSafe/Jev 密钥（apikey_… 开头，约 100 字符）。没有的话：console.typesafe.ai 用 Google 或邮箱验证码登录 → API Keys → 新建，复制过来贴上。")
+        val key = edit(cfg.apiKey, "apikey_…（只存在本机）", password = true)
+        button("保存密钥") {
+            cfg.apiKey = key.text.toString().trim()
+            toast(if (cfg.hasKey()) "已保存（${cfg.apiKey.length} 字符）" else "太短了，密钥一般 100 字符左右")
+            refreshDynamic()
+        }
+        button("测试密钥") {
+            val k = key.text.toString().trim()
+            if (k.length < 20) {
+                toast("先填密钥")
+                return@button
+            }
+            cfg.apiKey = k
+            toast("正在测试…")
+            Thread {
+                val r = JevHttp.test(k)
+                runOnUiThread {
+                    when (r) {
+                        is JevResult.Ok -> {
+                            AppLog.add("密钥测试成功")
+                            toast("密钥可用 ✓")
+                        }
+                        is JevResult.Err -> {
+                            AppLog.add("密钥测试失败：${r.message}")
+                            toast("失败：" + r.message, true)
+                        }
+                    }
+                    refreshDynamic()
+                }
+            }.start()
+        }
+
+        // 关系
+        section("关系（联系人表）")
+        sub(
+            "一行一个，格式：名字,别名,别名=关系/性别/备注\n" +
+                "例：妈妈,妈,老妈=家人/女/生日三月\n" +
+                "例：张伟,伟哥,老张=同事/男/市场部\n" +
+                "判定时用会话标题（或昵称）去匹配，命中最长的别名生效；匹配不到就当「普通朋友/未知」。\n" +
+                "关系档位：" + Contacts.RELATIONS.joinToString("、")
+        )
+        val rel = edit(
+            cfg.contacts().joinToString("\n") { Contacts.formatLine(it) },
+            "名字,别名=关系/性别/备注",
+            multiline = true
+        )
+        button("保存联系人表") {
+            val list = rel.text.toString().split('\n').mapNotNull { Contacts.parseLine(it) }
+            cfg.saveContacts(list)
+            toast("已保存 ${list.size} 位联系人")
+            AppLog.add("联系人表已更新：${list.size} 条")
+            rel.setText(list.joinToString("\n") { Contacts.formatLine(it) })
+        }
+
+        // 判读设置
+        section("判读设置")
+        spinner("题目语言", Prompt.LANG_LABELS, Prompt.LANGS.indexOf(cfg.lang).coerceAtLeast(0)) {
+            cfg.lang = Prompt.LANGS[it]
+            toast("题目语言 → " + cfg.lang)
+        }
+        spinner("模型", Prompt.MODELS, Prompt.MODELS.indexOf(cfg.model).coerceAtLeast(0)) {
+            cfg.model = Prompt.MODELS[it]
+        }
+        spinner("情绪显示条数", listOf("1 条", "3 条", "5 条"), listOf(1, 3, 5).indexOf(cfg.emotionTop).coerceAtLeast(0)) {
+            cfg.emotionTop = listOf(1, 3, 5)[it]
+        }
+        spinner(
+            "上下文句数", listOf("0", "1", "2", "3", "5", "7", "10"),
+            listOf(0, 1, 2, 3, 5, 7, 10).indexOf(cfg.contextN).coerceAtLeast(0)
+        ) { cfg.contextN = listOf(0, 1, 2, 3, 5, 7, 10)[it] }
+        spinner(
+            "3 条之间的间隔", listOf("1200ms", "2000ms", "3000ms"),
+            listOf(1200, 2000, 3000).indexOf(cfg.toastGapMs).coerceAtLeast(0)
+        ) { cfg.toastGapMs = listOf(1200, 2000, 3000)[it] }
+        switchRow("分析中先弹一条「Jev 分析中…」（关掉就只剩 3 条）", cfg.showAnalyzing) { cfg.showAnalyzing = it }
+        switchRow("自动判读（检测到对方新消息就分析，默认关）", cfg.autoAnalyze) { cfg.autoAnalyze = it }
+        spinner(
+            "自动判读防抖", listOf("600ms", "1200ms", "2000ms"),
+            listOf(600, 1200, 2000).indexOf(cfg.autoDebounceMs).coerceAtLeast(0)
+        ) { cfg.autoDebounceMs = listOf(600, 1200, 2000)[it] }
+        switchRow("尝试把「引用块 + 正文」合成一条（启发式，可能误合并）", cfg.linkQuotes) { cfg.linkQuotes = it }
+        switchRow("服务运行时挂一条常驻通知", cfg.showNotification) {
+            cfg.showNotification = it
+            toast("重启无障碍服务后生效")
+        }
+
+        // 聊天模型（生成候选文案）
+        section("聊天模型（生成候选回复文案）")
+        sub(
+            "判读由 Jev 负责；回复文案由这个通用聊天模型生成（任何 OpenAI 兼容端点都行）。\n" +
+                "地址填到 /v1 为止，例如：https://api.deepseek.com/v1 ｜ https://api.openai.com/v1 ｜ 你自己的中转站。\n" +
+                "它的密钥跟 Jev 的密钥是两回事，也只存在本机。"
+        )
+        val chatBase = edit(cfg.chatBaseUrl, "https://api.deepseek.com/v1")
+        val chatKey = edit(cfg.chatApiKey, "sk-…（只存在本机）", password = true)
+        val chatModel = edit(cfg.chatModel, "deepseek-chat")
+        button("保存聊天模型配置") {
+            cfg.chatBaseUrl = chatBase.text.toString().trim()
+            cfg.chatApiKey = chatKey.text.toString().trim()
+            cfg.chatModel = chatModel.text.toString().trim()
+            toast(if (cfg.hasChatKey()) "已保存：${cfg.chatModel}" else "密钥太短（一般 30 字符以上）")
+            refreshDynamic()
+        }
+        button("测试聊天模型") {
+            val b = chatBase.text.toString().trim()
+            val k = chatKey.text.toString().trim()
+            val m = chatModel.text.toString().trim()
+            if (k.length < 20) {
+                toast("先填聊天模型的密钥")
+                return@button
+            }
+            cfg.chatBaseUrl = b
+            cfg.chatApiKey = k
+            cfg.chatModel = m
+            toast("正在测试…")
+            Thread {
+                val r = ChatHttp.test(b, k, m)
+                runOnUiThread {
+                    when (r) {
+                        is ChatResult.Ok -> {
+                            AppLog.add("聊天模型测试成功：$m")
+                            toast("可用 ✓：" + r.text.take(40))
+                        }
+                        is ChatResult.Err -> {
+                            AppLog.add("聊天模型测试失败：${r.message}")
+                            toast("失败：" + r.message, true)
+                        }
+                    }
+                    refreshDynamic()
+                }
+            }.start()
+        }
+        switchRow("生成候选文案（关掉就只做判读，省一次调用）", cfg.draftsEnabled) { cfg.draftsEnabled = it }
+        spinner(
+            "生成几条候选", listOf("1", "2", "3", "4", "5"),
+            listOf(1, 2, 3, 4, 5).indexOf(cfg.draftsN).coerceAtLeast(0)
+        ) { cfg.draftsN = listOf(1, 2, 3, 4, 5)[it] }
+
+        // 攻略度与记忆
+        section("攻略度与记忆")
+        sub(
+            "攻略度：让 Jev 就「当前关系进展」给一个 0~100% 的评分（11 档 ×10），结果里会显示与上次的差值。\n" +
+                "记忆：每个联系人一份，只存在本机 filesDir/memory/ 下；攒够若干条新对话后自动刷新摘要与关键事实。\n" +
+                "记忆会作为「背景」一起交给 Jev 和聊天模型 —— 关掉它，每次分析都等于第一次聊。"
+        )
+        switchRow("问 Jev 要「攻略度」评分", cfg.guideEnabled) { cfg.guideEnabled = it }
+        switchRow("启用本地记忆", cfg.memoryEnabled) { cfg.memoryEnabled = it }
+        spinner(
+            "摘要刷新频率", listOf("关", "5 条", "8 条", "15 条", "30 条"),
+            listOf(0, 5, 8, 15, 30).indexOf(cfg.summarizeEvery).coerceAtLeast(0)
+        ) { cfg.summarizeEvery = listOf(0, 5, 8, 15, 30)[it] }
+        spinner(
+            "结果显示方式", listOf("结果页（可点选复制）", "只弹提示"),
+            listOf("page", "toast").indexOf(cfg.resultMode).coerceAtLeast(0)
+        ) { cfg.resultMode = listOf("page", "toast")[it] }
+        button("查看记忆（份数 / 最近一份）") { showMemory() }
+        button("清空全部记忆") {
+            val n = Memories.clearAll(this)
+            toast("已清空 $n 份记忆")
+            AppLog.add("已清空全部记忆：$n 份")
+        }
+
+        // 抓屏诊断
+        section("抓屏诊断（读不到消息时用这个）")
+        sub(
+            "用法：在微信聊天页拉下通知栏点「诊断抓屏」；或者点下面这个按钮，然后 3 秒内切回微信。\n" +
+                "导出的是当前窗口的节点结构（类名 / viewId / 坐标 / 文字标志），用来排查『为什么读不到消息』。\n" +
+                "只存在本机，不会自动上传 —— 只有你点「分享」才会发出去。"
+        )
+        button("3 秒后抓取微信窗口") {
+            val svc = WatchService.instance
+            if (svc == null) {
+                toast("无障碍服务没在运行")
+            } else {
+                svc.dumpAfter(3000)
+                toast("好，3 秒内切回微信聊天页")
+            }
+        }
+        button("分享最近一次诊断") { shareDump() }
+        button("把最近诊断显示在日志区") {
+            val d = cfg.lastDump
+            if (d.isEmpty()) toast("还没有诊断数据") else logText.text = d
+        }
+
+        // 维护
+        section("维护")
+        logText = body("")
+        button("刷新日志") { refreshDynamic() }
+        button("清空日志") {
+            AppLog.clear()
+            refreshDynamic()
+        }
+        button("清空全部设置（含密钥、联系人与记忆）") {
+            val mem = Memories.clearAll(this)
+            cfg.clearAll()
+            toast("已清空设置与 $mem 份记忆，重开本页恢复默认")
+            recreate()
+        }
+        sub(
+            "隐私：密钥、联系人表、日志只在本机 SharedPreferences 里；每个联系人的记忆在 filesDir/memory/ 下，" +
+                "都是本机文件，卸载即消失。没有云端、没有统计、没有第三方 SDK。\n" +
+                "唯一的外部请求：Jev（判读/攻略度）和你自己配的聊天模型（生成文案）—— 都只发当前会话相关内容。"
+        )
+    }
+
+    private fun shareDump() {
+        val d = cfg.lastDump
+        if (d.isEmpty()) {
+            toast("还没有诊断数据：先去微信里点通知栏「诊断抓屏」", true)
+            return
+        }
+        try {
+            val i = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_SUBJECT, "Jev攻略抓屏诊断")
+                putExtra(Intent.EXTRA_TEXT, d)
+            }
+            startActivity(Intent.createChooser(i, "把诊断发给作者"))
+        } catch (e: Exception) {
+            toast("分享失败：${e.message}", true)
+        }
+    }
+
+    private fun refreshDynamic() {
+        val on = WatchService.instance != null
+        statusText.text = buildString {
+            append("无障碍服务：").append(if (on) "已开启 ✓" else "未开启 ✗（上面那个按钮去开）").append('\n')
+            append("Jev 密钥：").append(if (cfg.hasKey()) "已配置（${cfg.apiKey.length} 字符）" else "未配置").append('\n')
+            append("聊天模型：").append(
+                if (cfg.hasChatKey()) "${cfg.chatModel}（${cfg.chatBaseUrl}）"
+                else "未配置（只能判读，不出文案）"
+            ).append('\n')
+            append("攻略度：").append(if (cfg.guideEnabled) "开" else "关")
+            append(" · 记忆：").append(if (cfg.memoryEnabled) "开（${Memories.listAll(this@SettingsActivity).size} 份）" else "关")
+            append('\n')
+            append("当前设置：").append(cfg.lang).append(" · ").append(cfg.model)
+            append(" · 情绪 ").append(cfg.emotionTop).append(" 条 · 上下文 ").append(cfg.contextN).append(" 句")
+            append(" · 自动判读 ").append(if (cfg.autoAnalyze) "开" else "关")
+            append(" · 结果 ").append(if (cfg.resultMode == "page") "结果页" else "提示")
+            append('\n').append("版本：").append(BuildConfig.VERSION_NAME)
+        }
+        lastText.text = "最近一次结果：\n" + cfg.lastVerdict.ifEmpty { "(还没有判读过)" }
+        logText.text = "日志（最近 " + AppLog.text().split('\n').size + " 行）：\n" + AppLog.text()
+    }
+
+    /** 把记忆概况显示到下面的日志区（不额外做界面，省得再养一套 UI） */
+    private fun showMemory() {
+        val all = Memories.listAll(this)
+        if (all.isEmpty()) {
+            toast("还没有任何记忆（判读一次就有了）")
+            return
+        }
+        val sb = StringBuilder("共 ${all.size} 份记忆（只在本机 filesDir/memory/）\n")
+        all.take(10).forEach { m ->
+            sb.append("\n── ").append(m.name).append("（").append(m.relation.ifEmpty { "未设关系" }).append("）──\n")
+            sb.append("摘要：").append(m.summary.ifEmpty { "（还没生成，攒够对话会自动刷）" }).append('\n')
+            if (m.facts.isNotEmpty()) {
+                sb.append("事实：").append(m.facts.joinToString("；") { it.text }).append('\n')
+            }
+            sb.append("评分：").append(
+                if (m.scores.isEmpty()) "（还没有）"
+                else m.scores.take(6).reversed().joinToString(" → ") { it.score.toString() + "%" }
+            ).append('\n')
+            sb.append("对话：").append(m.turns.size).append(" 条 · 更新 ").append(fmtTime(m.updatedAt)).append('\n')
+        }
+        logText.text = sb.toString()
+        toast("记忆已显示在下面的日志区")
+    }
+
+    private fun fmtTime(ts: Long): String = try {
+        java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date(ts))
+    } catch (e: Exception) {
+        "-"
+    }
+
+    // ────────────────────────── 小工具
+
+    private fun title(t: String) = page.addView(TextView(this).apply {
+        text = t
+        setTextColor(color(R.color.text))
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 24f)
+        setPadding(0, 0, 0, dp(6))
+    })
+
+    private fun section(t: String) = page.addView(TextView(this).apply {
+        text = t
+        setTextColor(color(R.color.brand))
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 17f)
+        setPadding(0, dp(22), 0, dp(4))
+    })
+
+    private fun sub(t: String) = page.addView(TextView(this).apply {
+        text = t
+        setTextColor(color(R.color.text_dim))
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
+        setLineSpacing(dp(3).toFloat(), 1f)
+        setPadding(0, dp(2), 0, dp(6))
+    })
+
+    private fun body(t: String) = TextView(this).apply {
+        text = t
+        setTextColor(color(R.color.text))
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+        typeface = android.graphics.Typeface.MONOSPACE
+        setLineSpacing(dp(3).toFloat(), 1f)
+        setPadding(dp(10), dp(10), dp(10), dp(10))
+        background = card()
+        page.addView(this, margins())
+    }
+
+    private fun edit(value: String, hint: String, password: Boolean = false, multiline: Boolean = false) =
+        EditText(this).apply {
+            setText(value)
+            this.hint = hint
+            setTextColor(color(R.color.text))
+            setHintTextColor(color(R.color.text_dim))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            background = card()
+            setPadding(dp(10), dp(10), dp(10), dp(10))
+            if (password) inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            if (multiline) {
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+                minLines = 4
+                gravity = Gravity.TOP or Gravity.START
+            }
+            page.addView(this, margins())
+        }
+
+    private fun switchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+        val sw = Switch(this).apply {
+            isChecked = checked
+            setOnCheckedChangeListener { _, v -> onChange(v) }
+        }
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            background = card()
+            setPadding(dp(10), dp(6), dp(10), dp(6))
+            addView(TextView(this@SettingsActivity).apply {
+                text = label
+                setTextColor(color(R.color.text))
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            addView(sw)
+        }
+        page.addView(row, margins())
+    }
+
+    private fun spinner(label: String, options: List<String>, index: Int, onPick: (Int) -> Unit) {
+        val sp = Spinner(this).apply {
+            adapter = ArrayAdapter(this@SettingsActivity, android.R.layout.simple_spinner_dropdown_item, options)
+            setSelection(index.coerceIn(0, (options.size - 1).coerceAtLeast(0)))
+            onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) =
+                    onPick(position)
+
+                override fun onNothingSelected(parent: android.widget.AdapterView<*>?) = Unit
+            }
+        }
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            background = card()
+            setPadding(dp(10), dp(4), dp(10), dp(4))
+            addView(TextView(this@SettingsActivity).apply {
+                text = label
+                setTextColor(color(R.color.text))
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            addView(sp)
+        }
+        page.addView(row, margins())
+    }
+
+    private fun button(label: String, onClick: () -> Unit) {
+        page.addView(Button(this).apply {
+            text = label
+            setOnClickListener { onClick() }
+        }, margins())
+    }
+
+    private fun card(): GradientDrawable = GradientDrawable().apply {
+        setColor(color(R.color.card))
+        cornerRadius = dp(10).toFloat()
+    }
+
+    private fun margins(): LinearLayout.LayoutParams = LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+    ).apply { topMargin = dp(6) }
+
+    private fun dp(v: Int): Int = Math.round(v * resources.displayMetrics.density)
+
+    private fun color(id: Int): Int = if (Build.VERSION.SDK_INT >= 23) getColor(id) else Color.WHITE
+
+    private fun toast(t: String, long: Boolean = false) = Toast3.toast(this, t, long)
+}

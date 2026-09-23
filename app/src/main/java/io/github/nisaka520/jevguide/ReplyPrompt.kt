@@ -1,0 +1,356 @@
+package io.github.nisaka520.jevguide
+
+/**
+ * 一条候选回复。
+ *
+ * index 从 0 开始，并且与 STYLE_TITLES 的位置对齐（0=稳妥 / 1=推进 / 2=有趣）：
+ * 界面按 index 顺序展示，这样"再刷一次"出来的三条永远是同一种排列，用户不会看花眼。
+ */
+data class Draft(val index: Int, val title: String, val text: String)
+
+/**
+ * 3 条候选回复的提示词 + 宽容解析（纯逻辑，可单测）。
+ *
+ * 为什么让模型吐"标题行 + `---` 分隔"这种土格式，而不是 JSON：
+ *  - 回复文案天生带引号、换行、emoji，塞进 JSON 字符串要靠模型自己转义，实测经常坏（少个引号整条就废）；
+ *  - 用户在设置页里预览提示词时，土格式一眼能看懂，JSON 提示词只会让人不敢改；
+ *  - 解析端只要够宽容，坏格式也能退化出能用的结果 —— 反正模型排版千奇百怪，这一点是必然要做的。
+ *
+ * parse 的分段优先级（有结构就按结构切，没结构才兜底，绝不抛异常）：
+ *   ① 分隔线 `---` / `***` / `===` / `___` / `———`
+ *   ② 标题行 `【稳妥】`（兼容 `1. 【稳妥】`、`**【稳妥】**`、`## 稳妥`）
+ *   ③ 行首编号 `1.` / `①` / `（2）`
+ *   ④ 整段原文当 1 条（title 用 STYLE_TITLES[0]）
+ */
+object ReplyPrompt {
+
+    val STYLE_TITLES = listOf("稳妥", "推进", "有趣")
+
+    /** 每种风格的一句话说明（设置页展示 + 拼进提示词，保证两处口径一致） */
+    private val STYLE_HINTS = listOf(
+        "顺着对方的话接住，先给明确答复，不冒险、不得罪人",
+        "把话题往前推一步：给方案、给时间、给下一步动作",
+        "带一点玩笑和俏皮，能逗对方笑，但不油腻、不越界"
+    )
+
+    /** 人类可读的三种风格说明，供设置页/提示词复用 */
+    fun styleGuide(): String =
+        STYLE_TITLES.mapIndexed { i, t -> "${i + 1}. 【$t】${STYLE_HINTS[i]}" }.joinToString("\n")
+
+    /**
+     * 组装 system 提示词：角色 + 三种风格 + 【记忆】+ 输出格式 + 硬性约束。
+     *
+     * 记忆块单独成段是有原因的：它每次都可能不同（关系、备注、上次结论），
+     * 混在风格说明里模型会当成"风格的一部分"而忽略掉；单独一段 + 明确标题，遵守率明显更高。
+     *
+     * @param memoryBlock 可能为空（没有记忆时给一句"（暂无记忆）"，比留空更不容易被模型脑补）
+     * @param lang "zh" 用中文提示词；"en" 用英文提示词，但**仍然要求输出中文文案**
+     *             （英文提问只是为了拿更高的遵守率，成品必须是中文，不然发给对方就露馅了）
+     */
+    fun buildSystem(memoryBlock: String, lang: String): String {
+        // Memories.contextBlock 自己会带一个「【记忆】」抬头，这里别再套一层（否则提示词里出现两个标题）
+        val memory = memoryBlock.trim().removePrefix("【记忆】").trim().ifEmpty { "（暂无记忆）" }
+        return if (lang == "en") systemEn(memory) else systemZh(memory)
+    }
+
+    private fun systemZh(memory: String): String = buildString {
+        append("你是「微信回复代笔」：替用户写出可以直接发出去的回复，不是分析、不是建议，是成品。\n\n")
+        append("【三种风格】\n")
+        append(styleGuide()).append("\n\n")
+        append("【记忆】\n").append(memory).append("\n\n")
+        append("【输出格式】\n")
+        append("只输出 ").append(STYLE_TITLES.size).append(" 段，每段第一行是标题行，形如")
+        append(STYLE_TITLES.joinToString("、") { "【$it】" })
+        append("，其余行是正文；段与段之间用一行 --- 分隔。\n")
+        append("不要解释、不要 markdown 代码块、不要编号列表。每段 1~3 句，直接可以发给对方的成品口吻。\n\n")
+        append("【硬性约束】\n")
+        append("- 必须遵守上面 Jev 给出的回复姿态与关系设定：关系决定称呼和亲疏，姿态决定语气，不能反过来。\n")
+        append("- 不要承诺做不到的事（借钱、担保、拍死的时间点，做不到就别写）。\n")
+        append("- 不涉及钱、验证码、账号密码、链接等敏感内容，也不要引导对方提供这些。\n")
+        append("- 不编造事实，不虚构没发生过的约定；不确定的事就用「我先确认一下」这种说法。\n")
+        append("- 只输出候选回复本身，不要输出任何分析过程或前后缀说明。")
+    }
+
+    private fun systemEn(memory: String): String = buildString {
+        append("You are a \"WeChat reply ghostwriter\": you write finished replies the user can send as-is, not analysis and not advice.\n\n")
+        append("[Three styles]\n")
+        append("1. [稳妥] Steady: pick up what the other person said, give a clear answer, avoid risk and offence.\n")
+        append("2. [推进] Advance: move things forward with a plan, a time, or a next step.\n")
+        append("3. [有趣] Playful: a light joke that makes them smile, without being creepy or crossing a line.\n\n")
+        append("[Memory]\n").append(memory).append("\n\n")
+        append("[Output format]\n")
+        append("Output exactly ").append(STYLE_TITLES.size).append(" sections. The first line of each section is a title line like ")
+        append(STYLE_TITLES.joinToString(", ") { "【$it】" })
+        append("; the remaining lines are the reply body. Separate sections with a single line of ---.\n")
+        append("No explanations, no markdown code fences, no numbered lists. Each section is 1-3 sentences in a finished, send-ready tone.\n")
+        append("Write the drafts in Chinese.\n\n")
+        append("[Hard rules]\n")
+        append("- Follow the reply stance and the relationship setting that Jev reported above; the relationship decides the form of address.\n")
+        append("- Never promise anything you cannot deliver (no loans, no guarantees, no impossible deadlines).\n")
+        append("- No money, verification codes, passwords or links, and never ask the other side for them.\n")
+        append("- Do not invent facts or agreements that never happened.\n")
+        append("- Output only the drafts themselves, with no analysis and no surrounding commentary.")
+    }
+
+    /** 组装 user 提示词：把 Jev 分析结论 + 当前对话 state 交给模型（state 是中文原文，不翻译） */
+    fun buildUser(jevLines: List<String>, state: String, n: Int = 3): String = buildString {
+        append("【Jev 分析结论】\n")
+        if (jevLines.isEmpty()) {
+            append("（无）\n")
+        } else {
+            for (line in jevLines) append("- ").append(line.trim()).append('\n')
+        }
+        append("\n【当前对话 state】\n")
+        append(state.trim().ifEmpty { "（无）" })
+        append("\n\n请按 system 里的格式输出 ").append(n.coerceAtLeast(1)).append(" 段候选回复。")
+    }
+
+    /**
+     * 宽容解析模型输出 → 最多 n 条 Draft。**任何输入都不抛异常**：
+     * 调用方在无障碍服务里跑，抛出去就是一次崩溃弹窗，而用户只是想让模型写句话。
+     */
+    fun parse(raw: String, n: Int = 3): List<Draft> {
+        val want = n.coerceAtLeast(1)
+        return try {
+            val out = ArrayList<Draft>(want)
+            for (section in sections(unfence(raw))) {
+                if (out.size >= want) break
+                val draft = toDraft(section, out.size) ?: continue
+                out.add(draft)
+            }
+            if (out.isEmpty()) fallback(raw) else out
+        } catch (e: Exception) {
+            // 兜底本身也可能踩到奇怪输入，那就干脆认输返回空表 —— 也绝不往外抛
+            try {
+                fallback(raw)
+            } catch (_: Exception) {
+                emptyList()
+            }
+        }
+    }
+
+    // ---------------- 解析内部 ----------------
+
+    /** 分段中间产物：title 可能为 null（模型没写标题），正文交给 cleanBody 清洗 */
+    private class Section(val title: String?, val body: String)
+
+    /** 分隔线：模型各写各的，常见几种都认（"---" 后面跟说明文字的不算，那多半是正文） */
+    private val SEPARATOR = Regex("""^[-*_=~—－]{3,}$""")
+
+    /** 行首的编号 / 项目符号 / 引用符号 / markdown 井号："1. "、"①"、"- "、"> "、"（2）"、"## " */
+    private val LEADING_MARK = Regex("""^\s*(?:#+\s*|[-*•·>]\s+|\d{1,2}[.、)）]\s+|\d{1,2}[、)）]\s*|[①-⑳]\s*|[（(]\d{1,2}[)）]\s*)""")
+
+    /** 纯编号行（用于"既没有标题也没有分隔线"时的最后一种切分依据） */
+    private val NUMBER_HEAD = Regex("""^\s*(?:(\d{1,2})[.、)）]\s*|([①-⑳])\s*|[（(]\d{1,2}[)）]\s*)""")
+
+    /** `【标题】`（标题里不该有换行，也不该长到 20 字以上） */
+    private val BRACKET_TITLE = Regex("""【([^】\n]{1,20})】""")
+
+    /**
+     * 段尾的解释性废话。只在**最后一行**、且正文还剩别的内容时才削，
+     * 并且刻意写得很窄：像"希望你能理解"这种正经正文不会被误伤。
+     */
+    private val TRAILING_NOISE = Regex(
+        """^(?:以上|希望(?:这些|以上|能帮|对你有帮|有所帮助)|如需|如果需要|需要我|要不要我|注[:：]|说明[:：]|备注[:：]|温馨提示|供你参考|你可以挑|挑一条)"""
+    )
+
+    /** 去掉 ``` 围栏行（` ```json ` 这种带语言标记的一并去掉），围栏内容原样留下 */
+    private fun unfence(raw: String): String =
+        raw.split('\n').filterNot { it.trim().startsWith("```") }.joinToString("\n")
+
+    /** 按优先级挑一种切法；返回空表表示"看不出任何结构"，交给 fallback */
+    private fun sections(text: String): List<Section> {
+        val lines = text.split('\n')
+
+        // ① 分隔线：最可靠的信号，模型只要照格式写就一定有
+        var bySep = splitBy(lines) { SEPARATOR.matches(it.trim()) }.map { sectionOf(it) }
+        if (bySep.size >= 2) {
+            // 第一个分隔线之前的孤立小块通常是"以下是三条回复："这类前言，后面有正经段落就丢掉
+            val firstTitled = bySep.indexOfFirst { it.title != null }
+            if (firstTitled > 0) bySep = bySep.drop(firstTitled)
+            return bySep
+        }
+
+        // ② 标题行（顺带把标题之前的废话丢掉）
+        val byTitle = splitByTitle(lines)
+        if (byTitle.isNotEmpty()) return byTitle
+
+        // ③ 行首编号（标题用 STYLE_TITLES 按位置补）
+        val byNumber = splitByNumber(lines)
+        if (byNumber.isNotEmpty()) return byNumber
+
+        return emptyList()
+    }
+
+    private fun splitBy(lines: List<String>, cut: (String) -> Boolean): List<List<String>> {
+        val out = ArrayList<List<String>>()
+        var cur = ArrayList<String>()
+        for (line in lines) {
+            if (cut(line)) {
+                if (cur.isNotEmpty()) out.add(cur)
+                cur = ArrayList()
+            } else {
+                cur.add(line)
+            }
+        }
+        if (cur.isNotEmpty()) out.add(cur)
+        return out
+    }
+
+    /** 一个分隔块 → Section：块里第一个标题行之前的内容算模型的前言，丢掉 */
+    private fun sectionOf(chunk: List<String>): Section {
+        for (i in chunk.indices) {
+            val t = titleOf(chunk[i]) ?: continue
+            val body = ArrayList<String>()
+            if (t.second.isNotEmpty()) body.add(t.second)
+            body.addAll(chunk.subList(i + 1, chunk.size))
+            return Section(t.first, body.joinToString("\n"))
+        }
+        return Section(null, chunk.joinToString("\n"))
+    }
+
+    /** 按标题行切：第一个标题之前的行（前言）直接丢，标题行同一行剩下的文字算正文第一行 */
+    private fun splitByTitle(lines: List<String>): List<Section> {
+        val out = ArrayList<Section>()
+        var title: String? = null
+        var body = ArrayList<String>()
+        var started = false
+        for (line in lines) {
+            val t = titleOf(line)
+            if (t != null) {
+                if (started) out.add(Section(title, body.joinToString("\n")))
+                started = true
+                title = t.first
+                body = ArrayList()
+                if (t.second.isNotEmpty()) body.add(t.second)
+            } else if (started) {
+                body.add(line)
+            }
+        }
+        if (started) out.add(Section(title, body.joinToString("\n")))
+        return out
+    }
+
+    /** 按行首编号切（`1.` / `①` / `（2）`）；编号行本身也可能带【标题】 */
+    private fun splitByNumber(lines: List<String>): List<Section> {
+        val out = ArrayList<Section>()
+        var title: String? = null
+        var body = ArrayList<String>()
+        var started = false
+        for (line in lines) {
+            val rest = numberRest(line)
+            if (rest == null) {
+                if (started) body.add(line)
+                continue
+            }
+            if (started) out.add(Section(title, body.joinToString("\n")))
+            started = true
+            title = null
+            body = ArrayList()
+            val t = titleOf(rest)
+            if (t != null) {
+                title = t.first
+                if (t.second.isNotEmpty()) body.add(t.second)
+            } else if (rest.isNotEmpty()) {
+                body.add(rest)
+            }
+        }
+        if (started) out.add(Section(title, body.joinToString("\n")))
+        return out
+    }
+
+    /**
+     * 编号行 → 去掉编号后的正文；不是编号行返回 null。
+     * "3.5 折给你" 这种必须排除掉：编号后面紧跟数字/小数点就不是列表项，否则正文会被啃掉一截。
+     */
+    private fun numberRest(rawLine: String): String? {
+        val line = rawLine.trim()
+        val m = NUMBER_HEAD.find(line) ?: return null
+        val rest = line.substring(m.value.length)
+        val head = rest.firstOrNull() ?: return ""
+        if (head.isDigit() || head == '.' || head == '%') return null
+        return rest
+    }
+
+    /** 标题行 → (标题, 同一行剩下的正文)；不是标题行返回 null */
+    private fun titleOf(rawLine: String): Pair<String, String>? {
+        var line = rawLine.trim()
+        val mark = LEADING_MARK.find(line)
+        if (mark != null) line = line.substring(mark.value.length).trim()
+        if (line.isEmpty()) return null
+
+        val br = BRACKET_TITLE.find(line)
+        if (br != null) {
+            val title = cleanTitle(br.groupValues[1])
+            if (title.isNotEmpty()) return title to line.substring(br.range.last + 1).trim()
+        }
+        // 没有【】时也认"光秃秃一行就是风格名"（"## 稳妥"、"**稳妥**"）
+        val bare = cleanTitle(line)
+        return if (bare in STYLE_TITLES) bare to "" else null
+    }
+
+    private fun cleanTitle(s: String): String =
+        s.replace("**", "").replace("*", "").replace("`", "")
+            .replace("【", "").replace("】", "")
+            .trim()
+            .trimEnd('：', ':', '。', '.', '、', '-', '—', ' ', '　')
+
+    private fun toDraft(section: Section, index: Int): Draft? {
+        val text = cleanBody(section.body)
+        if (text.isEmpty()) return null // 空段丢弃：标题写对了但正文是空的，展示出来只会占位置
+        val title = section.title?.takeIf { it.isNotEmpty() }
+            ?: STYLE_TITLES.getOrElse(index) { "方案${index + 1}" }
+        return Draft(index, title, text)
+    }
+
+    /**
+     * 正文清洗：去 markdown 强调符、去行首编号/项目符号、分隔线当空行、折叠多余空行、削段尾废话。
+     * 顺序不能反 —— 先去掉 `**` 才能让 `**1.**` 这种"加粗的编号"被识别成编号。
+     */
+    private fun cleanBody(raw: String): String {
+        val lines = ArrayList<String>()
+        for (line in raw.split('\n')) {
+            var s = stripMd(line).trim()
+            var guard = 0
+            while (guard++ < 3) {
+                val m = LEADING_MARK.find(s) ?: break
+                s = s.substring(m.value.length).trim()
+            }
+            // 正文里残留的分隔线（模型多写了一条）不能当内容展示
+            if (SEPARATOR.matches(s)) s = ""
+            lines.add(s)
+        }
+        while (lines.isNotEmpty() && lines.last().isEmpty()) lines.removeAt(lines.size - 1)
+        while (lines.size > 1 && TRAILING_NOISE.containsMatchIn(lines.last())) {
+            lines.removeAt(lines.size - 1)
+            while (lines.isNotEmpty() && lines.last().isEmpty()) lines.removeAt(lines.size - 1)
+        }
+
+        val sb = StringBuilder()
+        var pendingBlank = false
+        for (l in lines) {
+            if (l.isEmpty()) {
+                if (sb.isNotEmpty()) pendingBlank = true
+                continue
+            }
+            if (sb.isNotEmpty()) sb.append('\n')
+            if (pendingBlank) {
+                sb.append('\n')
+                pendingBlank = false
+            }
+            sb.append(l)
+        }
+        return sb.toString().trim()
+    }
+
+    /** 去掉 markdown 强调符（`**`、`*`、反引号）—— 在回复文案里它们只可能是模型的排版，不是内容 */
+    private fun stripMd(s: String): String =
+        s.replace("**", "").replace("`", "").replace("*", "")
+
+    /** 兜底：看不出结构时，整段原文当 1 条，标题用 STYLE_TITLES[0] */
+    private fun fallback(raw: String): List<Draft> {
+        val text = cleanBody(unfence(raw))
+        if (text.isEmpty()) return emptyList()
+        return listOf(Draft(0, STYLE_TITLES[0], text))
+    }
+}

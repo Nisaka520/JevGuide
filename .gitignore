@@ -1,0 +1,21 @@
+# 构建产物
+build/
+app/build/
+.gradle/
+local.properties
+*.apk
+*.aab
+*.jks
+*.keystore
+# 例外：这把是**公开的调试签名**，必须提交 —— 本地和 CI 共用它，升级才能覆盖安装
+!keystore/debug.keystore
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# 本机杂项
+dist/
+*.log
+captures/

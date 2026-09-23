@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg">#FF10131A</color>
+    <color name="card">#FF1A1F2A</color>
+    <color name="brand">#FF6FD3C7</color>
+    <color name="text">#FFE8ECF1</color>
+    <color name="text_dim">#FF97A3B4</color>
+    <color name="warn">#FFE5A25E</color>
+
+    <style name="AppTheme" parent="android:Theme.Material">
+        <item name="android:colorPrimary">@color/card</item>
+        <item name="android:colorPrimaryDark">@color/bg</item>
+        <item name="android:colorAccent">@color/brand</item>
+        <item name="android:windowBackground">@color/bg</item>
+        <item name="android:textColorPrimary">@color/text</item>
+        <item name="android:textColorSecondary">@color/text_dim</item>
+    </style>
+</resources>

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Jev攻略 · 微信聊天该不该回、怎么回，让 Jev 判一下</title>
+<meta name="description" content="安卓无障碍版微信关系助手：读屏判读 + 攻略度百分比 + 3 条能直接发的回复 + 每联系人本地记忆。只读屏幕、不发消息、零第三方依赖。">
+<meta property="og:title" content="Jev攻略 JevGuide">
+<meta property="og:description" content="判读 + 攻略度 + 3 条候选回复。只读屏、只在本机记，不发消息。">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><text y='48' font-size='48'>💬</text></svg>">
+<style>
+  :root{
+    --bg:#0f1319; --card:#171d26; --card2:#1e2632; --line:#28313d;
+    --text:#e8eef7; --dim:#9aa8bb; --brand:#4c9aff; --brand2:#7ee0a8; --warn:#ffb454; --bad:#ff7b72;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:radial-gradient(1200px 600px at 50% -10%,#1b2634 0%,var(--bg) 60%);
+    color:var(--text); font:16px/1.7 -apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:900px;margin:0 auto;padding:56px 20px 80px}
+  header{text-align:center;margin-bottom:40px}
+  h1{font-size:clamp(30px,6vw,46px);margin:0 0 6px;letter-spacing:.5px}
+  .tag{color:var(--dim);font-size:clamp(15px,2.4vw,19px);margin:0 auto;max-width:640px}
+  .cta{margin:28px 0 0;display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+  .btn{
+    display:inline-block;padding:13px 26px;border-radius:10px;text-decoration:none;font-weight:600;
+    border:1px solid var(--line);color:var(--text);background:var(--card);transition:.15s;
+  }
+  .btn:hover{transform:translateY(-1px);border-color:var(--brand)}
+  .btn.primary{background:linear-gradient(135deg,#4c9aff,#3b7fe0);border-color:transparent;color:#04101f}
+  section{margin:44px 0}
+  h2{font-size:22px;margin:0 0 14px;display:flex;align-items:center;gap:8px}
+  h2::before{content:"";width:4px;height:20px;border-radius:2px;background:var(--brand)}
+  p{color:#cfd9e6}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+  /* 结果页示意 */
+  .phone{
+    background:rgba(28,34,44,.96);border:1px solid var(--line);border-radius:16px;padding:16px 18px;
+    box-shadow:0 10px 30px rgba(0,0,0,.4);max-width:420px;margin:0 auto
+  }
+  .score{display:flex;align-items:baseline;gap:10px;margin:2px 0 10px}
+  .score b{font-size:38px;color:var(--brand2)}
+  .score i{font-style:normal;color:var(--dim);font-size:14px}
+  .bar{height:8px;border-radius:4px;background:var(--card2);overflow:hidden;margin-bottom:14px}
+  .bar span{display:block;height:100%;width:65%;background:linear-gradient(90deg,#4c9aff,#7ee0a8)}
+  .line{font-size:14.5px;color:#cfd9e6;white-space:pre-line}
+  .draft{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:10px;font-size:15px}
+  .draft .k{display:block;color:var(--brand2);font-size:12.5px;font-weight:600;margin-bottom:4px;letter-spacing:.5px}
+  ol.steps{padding-left:22px}
+  ol.steps li{margin:8px 0}
+  code{background:var(--card2);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:13.5px}
+  table{width:100%;border-collapse:collapse;font-size:14.5px}
+  th,td{border-bottom:1px solid var(--line);padding:9px 6px;text-align:left}
+  th{color:var(--dim);font-weight:600}
+  footer{color:var(--dim);font-size:14px;text-align:center;margin-top:56px}
+  a{color:var(--brand)}
+  .note{border-left:3px solid var(--warn);padding-left:12px;color:#d9c9a8;font-size:14.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Jev攻略 <span style="font-size:.6em;color:var(--dim)">JevGuide</span></h1>
+  <p class="tag">微信聊天里，这条消息<b>该不该急着回、怎么回、关系走到哪一步了</b> —— 读一次屏，Jev 判读，聊天模型给 3 条能直接发的回复。</p>
+  <div class="cta">
+    <a class="btn primary" href="https://github.com/nisaka520/JevGuide/releases">下载 APK</a>
+    <a class="btn" href="https://github.com/nisaka520/JevGuide">看源码</a>
+  </div>
+</header>
+
+<section>
+  <h2>它到底做什么</h2>
+  <div class="grid">
+    <div class="card"><b>① 判读</b><p>意图、情绪分布、着急程度、要不要回、有没有风险、建议姿态 —— 一次请求 8 个问题问完 Jev。</p></div>
+    <div class="card"><b>② 攻略度</b><p>给「当前关系进展」打一个 0~100% 的分，并显示与上次的差值：<b>65%（↑ +8）</b>。看趋势比看单次数值有意义。</p></div>
+    <div class="card"><b>③ 三条回复</b><p>不是建议，是成品：<b>稳妥</b>（不犯错）、<b>推进</b>（往前一步）、<b>有趣</b>（轻松幽默）。点一下就复制。</p></div>
+    <div class="card"><b>④ 记得住</b><p>每个联系人一份本地记忆（摘要 + 关键事实 + 历次评分）。所以它知道「她养了只叫团子的猫」。</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>结果长这样</h2>
+  <div class="phone">
+    <div style="color:var(--dim);font-size:13px">Jev攻略 · 小明（情侣）</div>
+    <div class="score"><b>87%</b><i>↑ +8</i></div>
+    <div class="bar"><span></span></div>
+    <div class="line">意图：邀约见面或请客 92%
+情绪：高兴 61% · 平静 30%
+着急：一般 · 1.20/3
+建议：建议肯定赞赏 78%</div>
+    <div class="draft"><span class="k">① 稳妥</span>有空呀，陪你去看展挺好的～你想看哪个展？我提前安排一下时间。</div>
+    <div class="draft"><span class="k">② 推进</span>有空，走呀～正好最近也想和你出去逛逛。你把展的时间地点发我，我们一起规划一下。</div>
+    <div class="draft"><span class="k">③ 有趣</span>有空啊，团子今天拆家你都需要出来散散心了😂 看展我陪你～</div>
+  </div>
+</section>
+
+<section>
+  <h2>怎么用</h2>
+  <ol class="steps">
+    <li>装 APK（<b>不需要 root</b>，跟插件版不一样），打开 App 开启无障碍服务</li>
+    <li>填两个密钥：<b>Jev 密钥</b>（判读）+ <b>聊天模型密钥</b>（写文案，任何 OpenAI 兼容端点都行）</li>
+    <li>微信里打开聊天 → 下拉栏磁贴「攻略一下」/ 通知栏「判读一下」/ 无障碍按钮</li>
+    <li>看结果页，点文案复制，粘贴发出去</li>
+  </ol>
+  <p class="note">国产 ROM 记得给 App 开自启动/后台白名单，否则无障碍服务会被省电策略杀掉。</p>
+</section>
+
+<section>
+  <h2>和同门的分工</h2>
+  <table>
+    <tr><th>项目</th><th>形态</th><th>干什么</th><th>要 root</th></tr>
+    <tr><td>JevIntent</td><td>FkWeChat 插件</td><td>长按消息，弹 3 条判读提示</td><td>要</td></tr>
+    <tr><td>JevBystander</td><td>独立 App</td><td>读屏判读，弹 3 条提示</td><td>不要</td></tr>
+    <tr><td><b>JevGuide</b></td><td>独立 App</td><td>判读 + 攻略度 + 3 条成品回复 + 长期记忆</td><td>不要</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>隐私</h2>
+  <div class="card">
+    <p>密钥、联系人表、日志在本机 SharedPreferences；每个联系人的记忆在本机 <code>filesDir/memory/</code>，卸载即消失。没有云端、没有统计、<b>运行期零第三方依赖</b>（连 OkHttp/Gson 都没引）。</p>
+    <p>只把<b>当前会话相关内容</b>发给两个接口：Jev（判读/攻略度）和你自己配的聊天模型（文案）。不修改、不发送任何消息，也不截屏。</p>
+  </div>
+</section>
+
+<section>
+  <h2>已知限制</h2>
+  <div class="card">
+    <p>· 只能读<b>屏幕上已显示的文字</b>：长消息折叠部分、图片/语音/文件、群聊里的多人归属都读不到<br>
+       · 必须精确匹配包名 <code>com.tencent.mm</code>，微信<b>分身/克隆版</b>读不到<br>
+       · 攻略度是模型判断不是测量，同段对话换一次调用可能差 ±10%<br>
+       · 文案是草稿，发出去前自己过一眼</p>
+  </div>
+</section>
+
+<footer>
+  MIT License · 由 <a href="https://github.com/nisaka520">nisaka520</a> 用 Jev + 一个聊天模型搭的小工具<br>
+  判读能力来自 <a href="https://typesafe.ai">Jev</a>；本项目不隶属于微信或腾讯。
+</footer>
+
+</div>
+</body>
+</html>
