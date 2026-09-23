@@ -40,6 +40,9 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var lastText: TextView
     private lateinit var logText: TextView
 
+    /** 分区 key → page 里的子 View 下标（首页带着 section 参数进来时用来滚动定位） */
+    private val sectionIndex = HashMap<String, Int>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         cfg = Config(this)
@@ -62,6 +65,16 @@ class SettingsActivity : AppCompatActivity() {
         }
         setContentView(scroll)
         buildStatic()
+        // 首页点某个入口进来时，直接滚到对应分区。
+        // 用 post 是因为这时还没布局，child.top 全是 0，得等第一帧量完再滚。
+        val wantSection = intent.getStringExtra("section").orEmpty()
+        if (wantSection.isNotEmpty()) {
+            scroll.post {
+                val i = sectionIndex[wantSection] ?: return@post
+                val child = page.getChildAt(i) ?: return@post
+                scroll.smoothScrollTo(0, (child.top - dp(12)).coerceAtLeast(0))
+            }
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             try {
                 requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
@@ -99,7 +112,7 @@ class SettingsActivity : AppCompatActivity() {
         sub("长按不需要、悬浮窗不需要 —— 在微信里点一下，弹 3 条提示：意图/情绪、着急、建议。")
 
         // 状态
-        section("状态")
+        section("状态", "a11y")
         statusText = body("")
         lastText = body("")
         button("打开无障碍设置") {
@@ -119,7 +132,7 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         // 密钥
-        section("接口密钥")
+        section("接口密钥", "key")
         sub("填自己的 TypeSafe/Jev 密钥（apikey_… 开头，约 100 字符）。没有的话：console.typesafe.ai 用 Google 或邮箱验证码登录 → API Keys → 新建，复制过来贴上。")
         val key = edit(cfg.apiKey, "apikey_…（只存在本机）", password = true)
         button("保存密钥", filled = true) {
@@ -154,7 +167,7 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         // 关系
-        section("关系（联系人表）")
+        section("关系（联系人表）", "relation")
         sub(
             "一行一个，格式：名字,别名,别名=关系/性别/备注\n" +
                 "例：妈妈,妈,老妈=家人/女/生日三月\n" +
@@ -312,7 +325,7 @@ class SettingsActivity : AppCompatActivity() {
         ) { cfg.draftsN = listOf(1, 2, 3, 4, 5)[it] }
 
         // 攻略度与记忆
-        section("攻略度与记忆")
+        section("攻略度与记忆", "memory")
         sub(
             "攻略度：让 Jev 就「当前关系进展」给一个 0~100% 的评分（11 档 ×10），结果里会显示与上次的差值。\n" +
                 "记忆：每个联系人一份，只存在本机 filesDir/memory/ 下；攒够若干条新对话后自动刷新摘要与关键事实。\n" +
@@ -466,6 +479,17 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         // 维护
+        // ── 关于（首页第五个入口指向这里）──
+        section("关于本软件", "about")
+        sub(
+            "Jev攻略 " + BuildConfig.VERSION_NAME + "\n" +
+                "做什么：在微信里点一下浮条，读当前聊天 → 算出攻略度 → 生成 3 条候选回复。\n" +
+                "隐私：密钥、联系人表、记忆、日志全部只存在本机；没有云端、没有统计、没有任何埋点。\n" +
+                "联网只有两处：① 把当前聊天内容发给 Jev 算攻略度；② 发给**你自己配的**聊天模型生成文案。\n" +
+                "免责：只读屏幕上已经显示的内容，不代替你说话、不自动发送；聊天记录的去向取决于你配的端点，" +
+                "请自行确认对方的隐私政策。请勿用于骚扰、跟踪或任何违法用途。"
+        )
+
         section("维护")
         logText = body("")
         button("刷新日志") { refreshDynamic() }
@@ -594,13 +618,16 @@ class SettingsActivity : AppCompatActivity() {
         setPadding(0, dp(8), 0, dp(4))
     })
 
-    private fun section(t: String) = page.addView(TextView(this).apply {
+    /** 分区标题。key 非空时记下它在 page 里的下标，首页点进来可以直接滚到这一节 */
+    private fun section(t: String, key: String = "") = page.addView(TextView(this).apply {
         text = t
         setTextColor(cPrimary)
         setTextSize(TypedValue.COMPLEX_UNIT_SP, 16.5f)
         typeface = android.graphics.Typeface.DEFAULT_BOLD
         setPadding(0, dp(22), 0, dp(4))
-    })
+    }).also {
+        if (key.isNotEmpty()) sectionIndex[key] = page.childCount - 1
+    }
 
     private fun sub(t: String) = page.addView(TextView(this).apply {
         text = t

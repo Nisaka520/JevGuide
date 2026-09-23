@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- 只需要联网（调 Jev）与通知（常驻入口，可关） -->
@@ -14,9 +14,12 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.JevGuide">
 
-        <!-- 唯一的界面：设置（也是桌面入口） -->
+        <!--
+          首页：桌面入口。只回答「你想干什么」，把设置拆成五个入口，
+          点进去带 section 参数打开设置页并滚到那一分区（不复制任何设置逻辑）。
+        -->
         <activity
-            android:name=".SettingsActivity"
+            android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name">
             <intent-filter>
@@ -24,6 +27,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- 设置页：从首页各入口进来（带 section 参数定位到分区） -->
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:label="@string/app_name" />
 
         <!--
           结果页：浮在微信上面的一层（攻略度 + 候选文案），关掉就回聊天。

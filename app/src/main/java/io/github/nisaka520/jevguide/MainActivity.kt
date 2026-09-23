@@ -1,0 +1,176 @@
+package io.github.nisaka520.jevguide
+
+import android.content.Intent
+import android.content.res.ColorStateList
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
+import android.os.Bundle
+import android.util.TypedValue
+import android.view.Gravity
+import android.view.View
+import android.view.ViewGroup
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.card.MaterialCardView
+
+/**
+ * 首页：把设置拆成几个入口，而不是一上来丢一整页几十项给用户。
+ *
+ * 为什么值得单独做一屏：设置页现在有十几个分区、几十个控件（状态、密钥、联系人表、
+ * 判读、聊天模型、记忆、读取方式、悬浮条、诊断、维护），第一次打开的人根本不知道该从哪下手。
+ * 首页只回答一个问题：「你想干什么」，点进去再落到那一分区。
+ *
+ * 实现上**不复制任何设置逻辑**：每个入口只是带着 `section=<key>` 打开设置页，
+ * 设置页建完页面后滚到对应分区。所以以后增删设置项，首页不需要跟着改
+ * （除了这一屏的文案），也不会出现"两处配置不一致"这种经典坑。
+ */
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var page: LinearLayout
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        page = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(24), dp(16), dp(32))
+        }
+        val scroll = ScrollView(this).apply {
+            addView(page)
+            clipToPadding = false
+        }
+        // 跟设置页一样：targetSdk 35 起系统强制全面屏，得自己把系统栏高度吃成内边距
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(scroll) { v, insets ->
+            val bars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            insets
+        }
+        setContentView(scroll)
+
+        title("Jev攻略")
+        sub("点下面任一项进设置。判读本身不用打开这个 App —— 在微信里点浮条就行。")
+
+        row(
+            "设定无障碍和启动", "开无障碍服务、选读取方式（无障碍树／截图识别）、悬浮条开关",
+            "a11y", 0xFF6FD3C7.toInt()
+        )
+        row(
+            "模型密钥配置", "填 Jev 密钥（必填）与聊天模型（生成 3 条候选文案用）",
+            "key", 0xFF7FB3FF.toInt()
+        )
+        row(
+            "关系设置", "每个联系人是什么关系（普通朋友／同事／对象…），判读会照这个口径来",
+            "relation", 0xFFFFC46B.toInt()
+        )
+        row(
+            "记忆管理", "看看记了谁、记了什么；也能一键清空。记忆只存本机",
+            "memory", 0xFFB79CFF.toInt()
+        )
+        row(
+            "关于本软件", "版本、隐私说明、邀请码与免责声明",
+            "about", 0xFF9AA8BB.toInt()
+        )
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // 首页也把浮条收起来：它只该出现在微信里，不该压住自己的界面
+        ScoreOverlay.setSuppressed(Config(this), true)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        ScoreOverlay.setSuppressed(Config(this), false)
+    }
+
+    /** 一行入口：左边一个色点（分区色），中间标题+说明，右边一个 › */
+    private fun row(title: String, sub: String, section: String, accent: Int) {
+        val dot = View(this).apply {
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(accent)
+            }
+            layoutParams = LinearLayout.LayoutParams(dp(10), dp(10)).apply {
+                rightMargin = dp(14)
+                gravity = Gravity.CENTER_VERTICAL
+            }
+        }
+        val texts = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(TextView(this@MainActivity).apply {
+                text = title
+                setTextColor(cOnSurface)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 15.5f)
+                typeface = Typeface.DEFAULT_BOLD
+            })
+            addView(TextView(this@MainActivity).apply {
+                text = sub
+                setTextColor(cOnSurfaceVariant)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+                setLineSpacing(dp(3).toFloat(), 1f)
+                setPadding(0, dp(3), 0, 0)
+            })
+        }
+        val arrow = TextView(this).apply {
+            text = "›"
+            setTextColor(cOnSurfaceVariant)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
+            setPadding(dp(8), 0, 0, 0)
+        }
+        val inner = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(16), dp(14), dp(14), dp(14))
+            addView(dot)
+            addView(texts, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            addView(arrow)
+        }
+        val card = MaterialCardView(this).apply {
+            radius = dp(20).toFloat()
+            cardElevation = 0f
+            strokeWidth = 0
+            setCardBackgroundColor(cContainerHigh)
+            isClickable = true
+            isFocusable = true
+            addView(inner)
+            setOnClickListener {
+                startActivity(
+                    Intent(this@MainActivity, SettingsActivity::class.java).putExtra("section", section)
+                )
+            }
+        }
+        page.addView(card, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply { topMargin = dp(10) })
+    }
+
+    private fun attr(@androidx.annotation.AttrRes id: Int, fallback: Int): Int {
+        val tv = TypedValue()
+        return if (theme.resolveAttribute(id, tv, true) && tv.data != 0) tv.data else fallback
+    }
+
+    private val cOnSurface: Int get() = attr(com.google.android.material.R.attr.colorOnSurface, 0xFF1A1C1E.toInt())
+    private val cOnSurfaceVariant: Int
+        get() = attr(com.google.android.material.R.attr.colorOnSurfaceVariant, 0xFF44474E.toInt())
+    private val cContainerHigh: Int
+        get() = attr(com.google.android.material.R.attr.colorSurfaceContainerHigh, 0xFFE7E8EC.toInt())
+
+    private fun title(t: String) = page.addView(TextView(this).apply {
+        text = t
+        setTextColor(cOnSurface)
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 28f)
+        typeface = Typeface.DEFAULT_BOLD
+        setPadding(0, dp(8), 0, dp(4))
+    })
+
+    private fun sub(t: String) = page.addView(TextView(this).apply {
+        text = t
+        setTextColor(cOnSurfaceVariant)
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+        setLineSpacing(dp(4).toFloat(), 1f)
+        setPadding(dp(2), 0, dp(2), dp(6))
+    })
+
+    private fun dp(v: Int): Int = Math.round(v * resources.displayMetrics.density)
+}
