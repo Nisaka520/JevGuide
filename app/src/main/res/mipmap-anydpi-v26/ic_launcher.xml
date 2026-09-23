@@ -1,5 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  自适应图标（API 26+ 唯一需要的定义 —— minSdk 就是 26，所以不用再塞任何 PNG 兜底，
+  mipmap-anydpi-v26 就覆盖了全部设备）。
+
+  三层：
+    background 深青→亮青的对角渐变
+    foreground 描边气泡 + 上升箭头
+    monochrome Android 13+ 的"主题图标"层，系统按 alpha 自己上色
+
+  monochrome 直接复用前景：前景本来就只有白色（纯 alpha 图形），
+  再抄一份一模一样的矢量只会多一处要同步维护的地方。
+-->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@color/bg" />
+    <background android:drawable="@drawable/ic_launcher_bg" />
     <foreground android:drawable="@drawable/ic_launcher_fg" />
+    <monochrome android:drawable="@drawable/ic_launcher_fg" />
 </adaptive-icon>

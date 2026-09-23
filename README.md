@@ -1,4 +1,4 @@
-# Jev攻略（JevGuide）
+﻿# Jev攻略（JevGuide）
 
 微信聊天里的**关系进展助手**：读屏 → Jev 判读 + 攻略度评分 → 聊天模型出 3 条候选回复，攻略度**常驻挂在屏幕上**。
 
@@ -267,13 +267,30 @@ HTTP 400  {"detail": "Too many score levels. Must have at most 10 levels."}
 
 ---
 
+## 界面（Material 3）
+
+整套界面用的是 **Material 3**（`com.google.android.material:material`），而且**跟着系统走**：
+
+- **深色/浅色**自动跟随系统（`Theme.Material3.DayNight`）
+- **Android 12 及以上会取壁纸的颜色**（Material You / 动态取色）——
+  所有颜色都取自主题属性，不是写死的色值，所以壁纸换色，界面跟着换
+- 卡片分层用 surface-container 的**色阶**（不是阴影），这是 MD3 的做法
+- 图标：描边聊天气泡 + 上升箭头，带单色层（Android 13+ 的"主题图标"会自己上色）
+
+> 代价摆在明面上：为此引入了 Material + AppCompat，**debug 包从 1.1 MB 涨到 6.0 MB**。
+> release 也暂不混淆 —— Material 控件靠反射按类名 inflate，R8 裁错一个类，
+> 只有真机点到那一屏才崩，单测看不出来。要瘦身请先在有真机的环境做一遍手工回归，
+> 再打开 `isMinifyEnabled` / `isShrinkResources`。
+
+---
+
 ## 结果页
 
 浮条点开就是结果页：
 
-- 顶部：**攻略度 65%（↑ +8）** + 进度条（≥70 绿、≥40 黄、其余红）
+- 顶部：**攻略度 65%（↑ +8）** 用 52sp 大字 + 进度条（≥70 绿、≥40 黄、其余红，进度条同色）
 - 中间：Jev 的判读行（意图+情绪 / 着急 / 建议姿态）
-- 下面：文案卡片，**点一下复制**；还有「复制全部」「重新生成」「关闭」
+- 下面：文案卡片，**点一下复制**（卡片带涟漪反馈）；还有「复制全部」「重新生成」「关闭」
   - 「重新生成」只重打聊天模型（Jev 的判读与攻略度不动），省一次 Jev 调用
 - 结果页拉不起来时（后台启动被系统拦）自动退化成一条可展开的通知，结果不会丢
 
@@ -283,7 +300,10 @@ HTTP 400  {"detail": "Too many score levels. Must have at most 10 levels."}
 
 - 密钥、联系人表、日志：本机 SharedPreferences
 - 每个联系人的记忆：本机 `filesDir/memory/`（本机文件，卸载即消失）
-- 没有云端、没有统计、没有第三方 SDK（运行期零第三方依赖，连 OkHttp/Gson 都没引）
+- 没有云端、没有统计、**没有任何联网的第三方 SDK**；崩溃上报、埋点一概没有
+- 界面上引了 Google 的 Material Components 与 AndroidX（Apache-2.0）：只在本机画界面，
+  不采集也不上传。所以现在**不再**是"零第三方依赖"了 —— 这里如实说明；
+  HTTP 依旧是自己写的，没引 OkHttp/Gson
 - **视觉读屏会把截图发给你自己配的那个端点**（跟文案同一个模型）—— 这是这条路的代价，介意就切回「只用无障碍树」
 - 截图只在内存里转成 base64 发走，**不落盘**
 - 不修改、不发送任何消息，也不注入点击
@@ -330,7 +350,7 @@ app/src/main/java/io/github/nisaka520/jevguide/
   AnalyzeReceiver.kt  通知按钮落地
 ```
 
-- 运行期**零第三方依赖**（JUnit 只是测试依赖）—— 无障碍服务是常驻进程，少带一个库就少一份自己控制不了的东西
+- 运行期第三方依赖只有 Google 的 **Material Components + AndroidX**（画界面用，Apache-2.0，不联网也不采集）；HTTP 与 JSON 仍然自己写，没引 OkHttp/Gson。无障碍服务是常驻进程，少带一个库就少一份自己控制不了的东西
 - **debug 版专属调试入口**（`app/src/debug/AndroidManifest.xml`）：把判读广播开放出去，方便 adb 远程触发，不用手点通知栏
   ```bash
   adb shell am broadcast -a io.github.nisaka520.jevguide.NOW  -n <包名>/io.github.nisaka520.jevguide.AnalyzeReceiver

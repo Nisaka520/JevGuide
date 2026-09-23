@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  图标底色：深青 → 亮青的对角渐变。
+
+  为什么用 shape 而不是 vector：自适应图标的 background 层会被系统按遮罩拉伸，
+  shape 的 <gradient> 直接铺满，不用关心 viewport 是多少。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="315"
+        android:endColor="#FF6FD3C7"
+        android:startColor="#FF0B4F4E"
+        android:type="linear" />
+</shape>

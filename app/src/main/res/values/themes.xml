@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  MD3 主题。
+
+  三个主题各有存在理由，别合并：
+  - Theme.JevGuide        ：设置页等普通界面（DayNight，跟随系统亮暗）
+  - Theme.JevGuide.Dialog ：结果页。它要"浮在微信上面"，所以用 Dialog 主题（背景透明 + 四周留白）
+  - Theme.JevGuide.Overlay：常驻浮条。它是用**无障碍服务的 context** 加的窗口，
+                            而 Material 控件要求宿主 context 带 Material 主题，否则 inflate 直接崩。
+                            所以浮条得用 ContextThemeWrapper 套上这个主题再造 View。
+
+  AppTheme 是旧名字，保留成别名：万一哪里还引用着它，不至于因为改主题而编译不过。
+-->
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <style name="Theme.JevGuide" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/md_primary</item>
+        <item name="colorOnPrimary">@color/md_on_primary</item>
+        <item name="colorPrimaryContainer">@color/md_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/md_on_primary_container</item>
+        <item name="colorSecondary">@color/md_secondary</item>
+        <item name="colorOnSecondary">@color/md_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/md_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/md_on_secondary_container</item>
+        <item name="colorSurface">@color/md_surface</item>
+        <item name="colorOnSurface">@color/md_on_surface</item>
+        <item name="colorSurfaceVariant">@color/md_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/md_on_surface_variant</item>
+        <item name="colorOutline">@color/md_outline</item>
+        <item name="colorError">@color/md_error</item>
+        <item name="colorOnError">@color/md_on_error</item>
+        <item name="colorErrorContainer">@color/md_error_container</item>
+        <item name="colorOnErrorContainer">@color/md_on_error_container</item>
+        <item name="android:windowBackground">@color/md_surface</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
+    </style>
+
+    <style name="Theme.JevGuide.Dialog" parent="Theme.Material3.DayNight.Dialog">
+        <item name="colorPrimary">@color/md_primary</item>
+        <item name="colorSurface">@color/md_surface</item>
+        <item name="colorOnSurface">@color/md_on_surface</item>
+        <item name="colorSurfaceVariant">@color/md_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/md_on_surface_variant</item>
+        <item name="colorOutline">@color/md_outline</item>
+        <!-- 对话框圆角：MD3 里对话框是 28dp，这里小一号（20dp）是因为它要盖在聊天界面上，别太占地方 -->
+        <item name="shapeAppearanceOverlay">@style/Shape.JevGuide.Dialog</item>
+    </style>
+
+    <style name="Shape.JevGuide.Dialog" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">20dp</item>
+    </style>
+
+    <!-- 浮条专用：不要窗口背景（它是浮层），控件尺寸也不受系统字体缩放影响 -->
+    <style name="Theme.JevGuide.Overlay" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="colorPrimary">@color/md_primary</item>
+        <item name="colorSurface">@color/md_surface</item>
+        <item name="colorOnSurface">@color/md_on_surface</item>
+        <item name="colorSurfaceVariant">@color/md_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/md_on_surface_variant</item>
+    </style>
+
+    <!-- 旧名字 → 新主题（防遗漏引用导致编译不过） -->
+    <style name="AppTheme" parent="Theme.JevGuide" />
+</resources>

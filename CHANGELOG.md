@@ -5,6 +5,53 @@
 > 本项目从 **JevBystander** 的读屏底座拆出来（同一套无障碍读取与判读口径），
 > 加上聊天模型、攻略度与本地记忆。JevBystander 自己的版本记录在它的仓库里。
 
+## [1.2.0] - 2026-09-23
+
+这一版只动**外观与手感**：整套界面换成 Material 3，跟着系统的深浅色和壁纸取色走。
+
+### 新增
+
+- **整套 Material 3 界面**（`com.google.android.material:material:1.12.0` + AppCompat）
+  - 设置页：卡片按色阶分层（surface-container 系列）、开关换成 MD3 开关、输入框换成描边盒
+    （`TextInputLayout` + `TextInputEditText`）、下拉换成暴露式菜单（`MaterialAutoCompleteTextView`）
+  - 结果页：攻略度给到 52sp 大字（配同色进度条，颜色随分数档位变），
+    3 条文案各自一张可点卡片 —— 用 `MaterialCardView` 是为了白拿涟漪反馈，
+    "点了没反应"是这类复制型界面最让人不放心的地方
+  - 常驻浮条：改成**胶囊形**，左侧一个分数色环（≥70 绿 / ≥40 黄 / 其余红）
+  - App 图标重画：描边聊天气泡 + 上升箭头，含单色层（Android 13+ 主题图标会自己上色）
+- **跟随壁纸取色（Material You）**：`DynamicColors.applyToActivitiesIfAvailable()`；
+  界面颜色一律走主题属性（`colorPrimary`、`colorSurfaceContainerHigh`…）而不是写死资源色 ——
+  写死的话，系统取色再好看也传不到界面上
+- **深色模式**：新增 `values-night` 一套配色；语义色（好/中/差三档）浅深各一版，
+  深色下用更亮的一档，否则在深底上发闷
+
+### 修复（改造过程中踩到的坑）
+
+- 下拉控件原先用 `Spinner`：它会在**页面刚建好时就回调一次**（初始选中项）。
+  如果回调里做"选中项与当前配置不一致 → 重建页面"，就会变成死循环。
+  换成暴露式菜单后只在用户真选时回调，`Providers.isSameAs()` 那层幂等判断继续留着当双保险
+- Material 1.12 里**没有** `materialButtonTonalStyle` 这个属性（编译期就报 unresolved）。
+  tonal 按钮改成自己染色：`colorSecondaryContainer` + `colorOnSecondaryContainer`
+- `boxCornerRadiusTopEnd / BottomStart / BottomEnd` 的 setter 在 1.12 已被移除
+  （写成属性会报 `'val' cannot be reassigned`），改用一次设四个角的 `setBoxCornerRadii()`
+- 悬浮条是在**无障碍服务的 context** 里造 View 的，Material 主题不在那个 context 上，
+  必须先套一层 `ContextThemeWrapper`，否则取主题属性全是系统默认值、颜色全错
+
+### 体积（说清楚，不藏）
+
+- debug 包 **1.1 MB → 6.0 MB**（Material + AppCompat 的 dex 与资源，且 release 也暂不混淆）
+- 为什么不顺手开 R8：Material 控件靠**反射**按类名从主题/XML inflate，R8 裁错一个类，
+  只有真机点到那一屏才崩，单测完全看不出来。当前没有真机回归条件，
+  宁可胖一点，也不发"装得上但某屏必崩"的包（`app/build.gradle.kts` 里有同样的注释）
+- 想瘦身：先在**有真机**的环境把设置页全部控件、结果页、悬浮条、图标各走一遍手工回归，
+  再把 `isMinifyEnabled` / `isShrinkResources` 打开
+
+### 测试
+
+- 102 个单测全绿（`ProvidersTest` 12 个、`VisionReaderTest` 9 个、`ScoreOverlayTest` 5 个在内）
+- ⚠ 这一版的**界面改动尚未在真机上验证**（截稿时手机没连着）：编译与单测都过，
+  但"MD3 控件在真机上的实际观感"还需要装一次机确认
+
 ## [1.1.0] - 2026-09-23
 
 这一版是被**真机实测**逼出来的：无障碍读微信在新版微信上彻底失效，于是多了两条路。

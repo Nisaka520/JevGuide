@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  深色色板（values-night）。
+
+  深色不是把浅色反相那么简单：MD3 深色下**主色要变浅**（浅色 #00696B 放在深底上根本看不清），
+  容器色也要跟着换成"低饱和 + 提亮"的一档。所以这里逐槽位重写，而不是靠 alpha 叠。
+  这一套就是 App 原来的配色（bg #10131A / 卡 #1A1F2A / 青绿 #6FD3C7），只是补上了 MD3 槽位。
+-->
+<resources>
+    <!-- ── 代码在用的语义色（深色）── -->
+    <color name="bg">#FF10131A</color>
+    <color name="card">#FF1A1F2A</color>
+    <color name="brand">#FF6FD3C7</color>
+    <color name="text">#FFE8ECF1</color>
+    <color name="text_dim">#FF97A3B4</color>
+    <color name="warn">#FFE5A25E</color>
+
+    <!-- ── MD3 槽位（深色）── -->
+    <color name="md_primary">#FF6FD3C7</color>
+    <color name="md_on_primary">#FF003735</color>
+    <color name="md_primary_container">#FF004F4E</color>
+    <color name="md_on_primary_container">#FF9CF0F1</color>
+    <color name="md_secondary">#FFB1CCCB</color>
+    <color name="md_on_secondary">#FF1C3535</color>
+    <color name="md_secondary_container">#FF334B4B</color>
+    <color name="md_on_secondary_container">#FFCCE8E7</color>
+    <color name="md_surface">#FF10131A</color>
+    <color name="md_on_surface">#FFE8ECF1</color>
+    <color name="md_surface_variant">#FF1A1F2A</color>
+    <color name="md_on_surface_variant">#FF97A3B4</color>
+    <color name="md_outline">#FF86938F</color>
+    <color name="md_error">#FFFFB4AB</color>
+    <color name="md_on_error">#FF690005</color>
+    <color name="md_error_container">#FF93000A</color>
+    <color name="md_on_error_container">#FFFFDAD6</color>
+</resources>

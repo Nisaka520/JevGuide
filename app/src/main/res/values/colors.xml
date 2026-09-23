@@ -1,18 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <color name="bg">#FF10131A</color>
-    <color name="card">#FF1A1F2A</color>
-    <color name="brand">#FF6FD3C7</color>
-    <color name="text">#FFE8ECF1</color>
-    <color name="text_dim">#FF97A3B4</color>
-    <color name="warn">#FFE5A25E</color>
+<!--
+  浅色（默认）色板。
 
-    <style name="AppTheme" parent="android:Theme.Material">
-        <item name="android:colorPrimary">@color/card</item>
-        <item name="android:colorPrimaryDark">@color/bg</item>
-        <item name="android:colorAccent">@color/brand</item>
-        <item name="android:windowBackground">@color/bg</item>
-        <item name="android:textColorPrimary">@color/text</item>
-        <item name="android:textColorSecondary">@color/text_dim</item>
-    </style>
+  两套名字并存，各有用途：
+  - bg / card / brand / text / text_dim / warn：**代码里在用的旧名字**（SettingsActivity、ResultActivity、
+    ScoreOverlay 都是 R.color.xxx）。保留它们，代码就不用为了换主题而到处改。
+  - colorPrimary / colorSurface / …：MD3 的标准槽位，给 Material 控件用。
+  Android 12+ 上整套会被「壁纸取色」覆盖（见 JevApp + DynamicColors），这里是不支持动态取色时的兜底。
+-->
+<resources>
+    <!-- ── 代码在用的语义色（浅色）── -->
+    <color name="bg">#FFF7FAF9</color>
+    <color name="card">#FFEDF2F1</color>
+    <color name="brand">#FF00696B</color>
+    <color name="text">#FF191C1C</color>
+    <color name="text_dim">#FF3F4949</color>
+    <color name="warn">#FF8B5000</color>
+
+    <!-- ── MD3 槽位（浅色）── -->
+    <color name="md_primary">#FF00696B</color>
+    <color name="md_on_primary">#FFFFFFFF</color>
+    <color name="md_primary_container">#FF9CF0F1</color>
+    <color name="md_on_primary_container">#FF002020</color>
+    <color name="md_secondary">#FF4A6363</color>
+    <color name="md_on_secondary">#FFFFFFFF</color>
+    <color name="md_secondary_container">#FFCCE8E7</color>
+    <color name="md_on_secondary_container">#FF051F1F</color>
+    <color name="md_surface">#FFF7FAF9</color>
+    <color name="md_on_surface">#FF191C1C</color>
+    <color name="md_surface_variant">#FFDAE4E4</color>
+    <color name="md_on_surface_variant">#FF3F4949</color>
+    <color name="md_outline">#FF6F7979</color>
+    <color name="md_error">#FFBA1A1A</color>
+    <color name="md_on_error">#FFFFFFFF</color>
+    <color name="md_error_container">#FFFFDAD6</color>
+    <color name="md_on_error_container">#FF410002</color>
 </resources>

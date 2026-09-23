@@ -11,8 +11,8 @@ android {
         applicationId = "io.github.nisaka520.jevguide"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = 3
+        versionName = "1.2.0"
     }
 
     /**
@@ -39,7 +39,19 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
         release {
-            isMinifyEnabled = false          // 无第三方依赖，不需要混淆；要瘦身可自行开启
+            /*
+             * 这里**故意不开** R8/资源压缩。
+             *
+             * 引入 Material 3 之后 debug 包从 1.1 MB 涨到 6.0 MB（不混淆、资源不去重是主因），
+             * 开 minify 能压下去不少 —— 但 Material 的控件是靠**反射**按类名从 XML/主题里
+             * inflate 的，R8 一旦裁到某个类，只有真机点到那一屏才崩，而这类崩溃在
+             * 单测里完全看不出来。当前没有可用的真机回归条件，所以宁可胖一点，
+             * 也不要发一个"装得上但某屏必崩"的包。
+             *
+             * 想瘦身的话：先在有真机的环境跑一遍完整手工回归（设置页全部控件、结果页、
+             * 悬浮条、图标），再把这两行打开。
+             */
+            isMinifyEnabled = false
             isShrinkResources = false
         }
     }
@@ -64,7 +76,14 @@ android {
 }
 
 dependencies {
-    // 运行期零第三方依赖：JSON 用手写的 Json.kt，网络用 HttpURLConnection，UI 用原生 View
+    // Material Components（MD3）：界面统一用它，顺带拿到 Material You 壁纸取色。
+    // 这是本项目**唯一**的运行期第三方依赖 —— 换来的是整套 MD3 控件与动态取色，
+    // 代价是 APK 从 ~1.1MB 涨到 ~2.5MB（会带进 androidx 的 appcompat/core/fragment 等）。
+    // 网络与 JSON 仍然是自带的（HttpURLConnection + 手写 Json.kt），没有引入 OkHttp/Gson。
+    implementation("com.google.android.material:material:1.12.0")
+    implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("androidx.core:core-ktx:1.13.1")
+
     testImplementation("junit:junit:4.13.2")
 }
 

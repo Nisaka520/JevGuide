@@ -1,14 +1,17 @@
 package io.github.nisaka520.jevguide
 
 import android.accessibilityservice.AccessibilityService
-import android.graphics.Color
+import android.content.Context
+import android.content.res.Configuration
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
+import android.view.ContextThemeWrapper
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.widget.LinearLayout
 import android.widget.TextView
 import kotlin.math.abs
 
@@ -20,6 +23,14 @@ import kotlin.math.abs
  * 无障碍服务可以用 `TYPE_ACCESSIBILITY_OVERLAY` 直接加窗口，**不需要 SYSTEM_ALERT_WINDOW**
  * （那个"显示在其他应用上层"的权限还得让用户去系统设置里翻）。代价是这个窗口只在本服务的
  * 生命周期内存在 —— 服务被系统杀掉，浮层也跟着没了（这反而合理：没服务就没数据）。
+ *
+ * ## 长相
+ *
+ * 胶囊形 + 左侧一个**分数色环**（≥70 绿 / ≥40 黄 / 其余红）+ 联系人与百分比。
+ * 颜色取主题属性，所以能跟上 Material You 的壁纸取色（跟设置页、结果页一致）。
+ *
+ * ⚠ 它是用**无障碍服务的 context** 造 View 的，而 Material 主题不在那个 context 上，
+ * 所以必须先套一层 `ContextThemeWrapper`，否则取主题属性会拿到系统默认值（颜色全错）。
  *
  * ## 交互
  *
@@ -35,9 +46,13 @@ import kotlin.math.abs
 object ScoreOverlay {
 
     private const val PAD_H = 14
-    private const val PAD_V = 8
+    private const val PAD_V = 9
+    private const val RING = 10          // 色环外径 dp
+    private const val RING_STROKE = 3    // 环宽 dp
 
-    private var view: TextView? = null
+    private var root: LinearLayout? = null
+    private var label: TextView? = null
+    private var ring: View? = null
     private var wm: WindowManager? = null
     private var params: WindowManager.LayoutParams? = null
 
@@ -57,7 +72,7 @@ object ScoreOverlay {
     @Volatile
     private var suppressed = false
 
-    fun isShowing(): Boolean = view != null
+    fun isShowing(): Boolean = root != null
 
     /**
      * 结果页进出时调用：进去就收起来，出来再按上次的文字恢复。
@@ -104,25 +119,47 @@ object ScoreOverlay {
             return
         }
         try {
-            val existing = view
+            val existing = label
             if (existing != null) {
                 existing.text = text
                 existing.setTextColor(colorOf(percent))
+                ring?.background = ringDrawable(service, percent)
                 return
             }
-            val tv = TextView(service).apply {
+
+            // Material 主题不在无障碍服务的 context 上，得自己套一层，否则取主题属性全是系统默认值
+            val themed = ContextThemeWrapper(service, R.style.Theme_JevGuide_Overlay)
+            val container = themedColor(
+                themed, com.google.android.material.R.attr.colorSurfaceContainerHigh, 0xFF1A1F2A.toInt()
+            )
+            val outline = themedColor(themed, com.google.android.material.R.attr.colorOutline, 0xFF3A3A3E.toInt())
+
+            val tv = TextView(themed).apply {
                 this.text = text
                 setTextColor(colorOf(percent))
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+                setPadding(dp(themed, 2), 0, 0, 0)
+                maxLines = 1
+            }
+            val dot = View(themed).apply {
+                background = ringDrawable(service, percent)
+                layoutParams = LinearLayout.LayoutParams(dp(service, RING), dp(service, RING))
+            }
+            val box = LinearLayout(themed).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
                 setPadding(dp(service, PAD_H), dp(service, PAD_V), dp(service, PAD_H), dp(service, PAD_V))
                 background = GradientDrawable().apply {
-                    cornerRadius = dp(service, 18).toFloat()
-                    setColor(0xE61C1C1E.toInt())
-                    setStroke(dp(service, 1), 0xFF3A3A3E.toInt())
+                    // 圆角给得比高度还大 → 系统会钳到"半高"，于是得到胶囊形（不用去量实际高度）
+                    cornerRadius = dp(service, 40).toFloat()
+                    setColor(container)
+                    setStroke(dp(service, 1), outline)
                 }
-                elevation = dp(service, 4).toFloat()
+                elevation = dp(service, 6).toFloat()
+                addView(dot)
+                addView(tv)
             }
-
+            // 色环用"分数语义色"（跟结果页同一套阈值色），刻意不跟壁纸走
             val w = service.getSystemService(AccessibilityService.WINDOW_SERVICE) as WindowManager
             val p = WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
@@ -138,9 +175,11 @@ object ScoreOverlay {
                 y = cfg.overlayY
             }
 
-            tv.setOnTouchListener(DragTap(service, cfg, w, p))
-            w.addView(tv, p)
-            view = tv
+            box.setOnTouchListener(DragTap(service, cfg, w, p))
+            w.addView(box, p)
+            root = box
+            label = tv
+            ring = dot
             wm = w
             params = p
             AppLog.add("常驻悬浮条已显示：$text")
@@ -155,16 +194,35 @@ object ScoreOverlay {
             main.post { hide() }
             return
         }
-        val v = view ?: return
+        val v = root ?: return
         try {
             wm?.removeView(v)
         } catch (t: Throwable) {
             AppLog.add("悬浮条移除失败：${t.javaClass.simpleName}")
         }
-        view = null
+        root = null
+        label = null
+        ring = null
         wm = null
         params = null
     }
+
+    /** 分数色环：空心圆环，颜色＝分数档位色 */
+    private fun ringDrawable(ctx: Context, percent: Int?): GradientDrawable = GradientDrawable().apply {
+        shape = GradientDrawable.OVAL
+        setColor(0x00000000)
+        setStroke(dp(ctx, RING_STROKE), colorOf(percent))
+    }
+
+    private fun themedColor(ctx: Context, attrId: Int, fallback: Int): Int {
+        val tv = TypedValue()
+        return if (ctx.theme.resolveAttribute(attrId, tv, true) && tv.data != 0) tv.data else fallback
+    }
+
+    @Suppress("unused")
+    private fun isNight(ctx: Context): Boolean =
+        (ctx.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+            Configuration.UI_MODE_NIGHT_YES
 
     private class DragTap(
         private val service: AccessibilityService,
@@ -186,7 +244,11 @@ object ScoreOverlay {
                     downX = e.rawX; downY = e.rawY
                     startX = p.x; startY = p.y
                     dragged = false; longFired = false
-                    handler.postDelayed({ longFired = true; hide(); Toast3.toast(service, "已隐藏悬浮条（设置里可再开）") }, 800)
+                    handler.postDelayed({
+                        longFired = true
+                        hide()
+                        Toast3.toast(service, "已隐藏悬浮条（设置里可再开）")
+                    }, 800)
                     return true
                 }
                 MotionEvent.ACTION_MOVE -> {
@@ -232,6 +294,6 @@ object ScoreOverlay {
         }
     }
 
-    private fun dp(service: AccessibilityService, v: Int): Int =
-        Math.round(v * service.resources.displayMetrics.density)
+    private fun dp(ctx: Context, v: Int): Int =
+        Math.round(v * ctx.resources.displayMetrics.density)
 }

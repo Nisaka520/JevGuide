@@ -1,7 +1,6 @@
 package io.github.nisaka520.jevguide
 
 import android.Manifest
-import android.app.Activity
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
@@ -13,22 +12,27 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ArrayAdapter
-import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
-import android.widget.Spinner
-import android.widget.Switch
 import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.materialswitch.MaterialSwitch
+import com.google.android.material.textfield.MaterialAutoCompleteTextView
+import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
 
 /**
- * 设置页。整页用代码搭（零 AndroidX、无 XML 布局）——
- * 这个 App 只有这一屏界面，为此引一整套 UI 库不值得。
+ * 设置页。
+ *
+ * 布局仍然用代码搭（这个 App 只有两屏界面，为它养一套 XML 布局不划算），
+ * 但**控件换成 Material 3**：卡片用色阶分层、开关是 MD3 开关、输入框是描边盒、
+ * 下拉是暴露式菜单。整套颜色走主题属性 → 在 Android 12+ 上会跟着壁纸走（Material You）。
  *
  * 页面结构：状态 → 接口密钥 → 关系（联系人表）→ 判读设置 → 维护（日志）。
  */
-class SettingsActivity : Activity() {
+class SettingsActivity : AppCompatActivity() {
 
     private lateinit var cfg: Config
     private lateinit var page: LinearLayout
@@ -41,10 +45,14 @@ class SettingsActivity : Activity() {
         cfg = Config(this)
         page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(20), dp(16), dp(28))
-            setBackgroundColor(color(R.color.bg))
+            setPadding(dp(16), dp(20), dp(16), dp(32))
+            // 不设背景色：让主题的 windowBackground（colorSurface）来 —— 这样才能跟着壁纸取色走
         }
-        val scroll = ScrollView(this).apply { addView(page) }
+        val scroll = ScrollView(this).apply {
+            addView(page)
+            // 内容延伸到系统栏下面时，别把最后一屏内容顶到导航条上
+            clipToPadding = false
+        }
         setContentView(scroll)
         buildStatic()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -534,120 +542,180 @@ class SettingsActivity : Activity() {
         "-"
     }
 
-    // ────────────────────────── 小工具
+    // ────────────────────────── 小工具（MD3）
+
+    /**
+     * 取**主题属性**里的颜色。
+     *
+     * ⚠ 别直接写 `R.color.brand`：那套是"不支持壁纸取色时的兜底色"，写死的。
+     * 只有走主题属性才能拿到 Material You 从壁纸算出来的配色 —— 否则会出现
+     * "Material 控件跟着壁纸变色、我手搓的标题还是老青绿"这种最难看的不一致。
+     */
+    private fun attr(@androidx.annotation.AttrRes id: Int, fallback: Int = R.color.text): Int {
+        val tv = TypedValue()
+        return if (theme.resolveAttribute(id, tv, true) && tv.data != 0) tv.data else color(fallback)
+    }
+
+    private val cPrimary: Int get() = attr(com.google.android.material.R.attr.colorPrimary)
+    private val cOnSurface: Int get() = attr(com.google.android.material.R.attr.colorOnSurface)
+    private val cOnSurfaceVariant: Int get() = attr(com.google.android.material.R.attr.colorOnSurfaceVariant)
+    private val cContainerHigh: Int get() = attr(com.google.android.material.R.attr.colorSurfaceContainerHigh)
+    private val cContainerLow: Int get() = attr(com.google.android.material.R.attr.colorSurfaceContainerLow)
 
     private fun title(t: String) = page.addView(TextView(this).apply {
         text = t
-        setTextColor(color(R.color.text))
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 24f)
-        setPadding(0, 0, 0, dp(6))
+        setTextColor(cOnSurface)
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f)
+        typeface = android.graphics.Typeface.DEFAULT_BOLD
+        setPadding(0, dp(4), 0, dp(2))
     })
 
     private fun section(t: String) = page.addView(TextView(this).apply {
         text = t
-        setTextColor(color(R.color.brand))
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 17f)
-        setPadding(0, dp(22), 0, dp(4))
+        setTextColor(cPrimary)
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+        typeface = android.graphics.Typeface.DEFAULT_BOLD
+        setPadding(0, dp(26), 0, dp(2))
     })
 
     private fun sub(t: String) = page.addView(TextView(this).apply {
         text = t
-        setTextColor(color(R.color.text_dim))
+        setTextColor(cOnSurfaceVariant)
         setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
-        setLineSpacing(dp(3).toFloat(), 1f)
-        setPadding(0, dp(2), 0, dp(6))
+        setLineSpacing(dp(4).toFloat(), 1f)
+        setPadding(dp(2), dp(2), dp(2), dp(8))
     })
 
     private fun body(t: String) = TextView(this).apply {
         text = t
-        setTextColor(color(R.color.text))
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+        setTextColor(cOnSurface)
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
         typeface = android.graphics.Typeface.MONOSPACE
         setLineSpacing(dp(3).toFloat(), 1f)
-        setPadding(dp(10), dp(10), dp(10), dp(10))
-        background = card()
+        setPadding(dp(14), dp(14), dp(14), dp(14))
+        background = card(cContainerLow)
+        // 日志/记忆是要能选中复制的 —— 读不到东西时用户得能把它发给作者
+        setTextIsSelectable(true)
         page.addView(this, margins())
     }
 
-    private fun edit(value: String, hint: String, password: Boolean = false, multiline: Boolean = false) =
-        EditText(this).apply {
+    private fun edit(
+        value: String,
+        hint: String,
+        password: Boolean = false,
+        multiline: Boolean = false
+    ): EditText {
+        val box = TextInputLayout(this).apply {
+            // 描边盒（OutlinedBox）是 MD3 里最"表单"的一种，标签会浮到边框上，省一行标题
+            boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
+            // 一次设四个角：Material 1.12 里单独设 TopEnd/BottomStart/BottomEnd 的 setter 已被移除
+            // （写成属性会报 'val' cannot be reassigned），setBoxCornerRadii 才是稳的写法
+            setBoxCornerRadii(dp(12).toFloat(), dp(12).toFloat(), dp(12).toFloat(), dp(12).toFloat())
+        }
+        val et = TextInputEditText(box.context).apply {
             setText(value)
             this.hint = hint
-            setTextColor(color(R.color.text))
-            setHintTextColor(color(R.color.text_dim))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-            background = card()
-            setPadding(dp(10), dp(10), dp(10), dp(10))
+            setSingleLine(!multiline)
             if (password) inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
             if (multiline) {
                 inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
                 minLines = 4
                 gravity = Gravity.TOP or Gravity.START
             }
-            page.addView(this, margins())
         }
+        box.addView(et)
+        page.addView(box, margins())
+        return et
+    }
 
     private fun switchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-        val sw = Switch(this).apply {
+        val sw = MaterialSwitch(this).apply {
             isChecked = checked
             setOnCheckedChangeListener { _, v -> onChange(v) }
         }
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            background = card()
-            setPadding(dp(10), dp(6), dp(10), dp(6))
+            background = card(cContainerHigh)
+            setPadding(dp(14), dp(10), dp(10), dp(10))
             addView(TextView(this@SettingsActivity).apply {
                 text = label
-                setTextColor(color(R.color.text))
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+                setTextColor(cOnSurface)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13.5f)
+                setLineSpacing(dp(3).toFloat(), 1f)
             }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
             addView(sw)
         }
         page.addView(row, margins())
     }
 
+    /**
+     * 下拉选择。
+     *
+     * 用 `MaterialAutoCompleteTextView` 而不是原生 `Spinner`，两个理由：
+     * 1. 长相是 MD3 的（描边盒 + 浮起标签），跟旁边的输入框一致
+     * 2. **没有 Spinner 那个坑**：Spinner 在设置监听器后会为初始选中项补发一次回调，
+     *    而"模型厂商"那一项收到回调要 `recreate()` 刷新输入框 —— 用 Spinner 就是无限重建。
+     *    AutoCompleteTextView 只在**用户真的点了**才回调，从根上没有这个问题。
+     */
     private fun spinner(label: String, options: List<String>, index: Int, onPick: (Int) -> Unit) {
-        val sp = Spinner(this).apply {
-            adapter = ArrayAdapter(this@SettingsActivity, android.R.layout.simple_spinner_dropdown_item, options)
-            setSelection(index.coerceIn(0, (options.size - 1).coerceAtLeast(0)))
-            onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-                override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) =
-                    onPick(position)
-
-                override fun onNothingSelected(parent: android.widget.AdapterView<*>?) = Unit
-            }
+        val box = TextInputLayout(this).apply {
+            hint = label
+            boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
+            // 一次设四个角：Material 1.12 里单独设 TopEnd/BottomStart/BottomEnd 的 setter 已被移除
+            // （写成属性会报 'val' cannot be reassigned），setBoxCornerRadii 才是稳的写法
+            setBoxCornerRadii(dp(12).toFloat(), dp(12).toFloat(), dp(12).toFloat(), dp(12).toFloat())
         }
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            background = card()
-            setPadding(dp(10), dp(4), dp(10), dp(4))
-            addView(TextView(this@SettingsActivity).apply {
-                text = label
-                setTextColor(color(R.color.text))
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-            addView(sp)
+        val tv = MaterialAutoCompleteTextView(box.context).apply {
+            inputType = InputType.TYPE_NULL                      // 只选不打字
+            setSimpleItems(options.toTypedArray())
+            // false = 别按输入内容过滤，否则一设值下拉列表就被过滤成空
+            setText(options.getOrElse(index) { "" }, false)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13.5f)
+            setPadding(dp(4), dp(14), dp(4), dp(14))
         }
-        page.addView(row, margins())
+        // TYPE_NULL 之后点击不会自己弹列表，得手动喊一下
+        tv.setOnClickListener { tv.showDropDown() }
+        tv.setOnItemClickListener { _, _, position, _ -> onPick(position) }
+        box.addView(tv)
+        page.addView(box, margins())
     }
 
-    private fun button(label: String, onClick: () -> Unit) {
-        page.addView(Button(this).apply {
+    /**
+     * ⚠ 参数顺序有讲究：`onClick` 必须放最后。
+     * Kotlin 的尾随 lambda（`button("x") { ... }`）只能绑到**最后一个参数**，
+     * 把 `filled` 放最后会让所有 `button("x") { }` 的调用点编译不过（lambda 被当成 Boolean）。
+     */
+    private fun button(label: String, filled: Boolean = false, onClick: () -> Unit) {
+        val b = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonStyle).apply {
             text = label
+            textSize = 13.5f
+            isAllCaps = false                 // 中文按钮千万别跟着英文规则全大写
+            cornerRadius = dp(12)
+            if (!filled) {
+                // MD3 的「tonal」按钮：形状跟 filled 一样，但用 secondaryContainer 这类低饱和容器色 ——
+                // 设置页一屏几十个按钮，全用实心主色会吵得没法看。
+                // Material 1.12 没暴露 tonal 的 style 属性（materialButtonTonalStyle 不存在），所以自己染。
+                backgroundTintList = android.content.res.ColorStateList.valueOf(
+                    attr(com.google.android.material.R.attr.colorSecondaryContainer)
+                )
+                setTextColor(attr(com.google.android.material.R.attr.colorOnSecondaryContainer))
+            }
             setOnClickListener { onClick() }
-        }, margins())
+        }
+        page.addView(b, margins())
     }
 
-    private fun card(): GradientDrawable = GradientDrawable().apply {
-        setColor(color(R.color.card))
-        cornerRadius = dp(10).toFloat()
+    /** 统一的卡片底：MD3 靠**色阶差**分层，不靠阴影（深色下阴影几乎看不见） */
+    private fun card(fill: Int = cContainerHigh): GradientDrawable = GradientDrawable().apply {
+        setColor(fill)
+        cornerRadius = dp(16).toFloat()
     }
 
     private fun margins(): LinearLayout.LayoutParams = LinearLayout.LayoutParams(
         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-    ).apply { topMargin = dp(6) }
+    ).apply { topMargin = dp(8) }
 
     private fun dp(v: Int): Int = Math.round(v * resources.displayMetrics.density)
 
