@@ -63,6 +63,17 @@
                 android:resource="@xml/a11y_config" />
         </service>
 
+        <!-- 分享记忆文件用：把外部私有目录里的 json 通过 content:// 发给别的 App -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <!-- 常驻通知上"判读一下"按钮的落地 -->
         <receiver
             android:name=".AnalyzeReceiver"

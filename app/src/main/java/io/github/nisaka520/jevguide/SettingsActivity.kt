@@ -351,23 +351,23 @@ class SettingsActivity : AppCompatActivity() {
             listOf("page", "toast").indexOf(cfg.resultMode).coerceAtLeast(0)
         ) { cfg.resultMode = listOf("page", "toast")[it] }
         button("查看记忆（份数 / 最近一份）") { showMemory() }
-        // 每个联系人一份记忆 —— 逐个列出来，点谁看谁。
-        // 原来只有一个按钮把所有记忆糊在一起，想知道"张三记了啥"得自己在一大段文字里找
-        // （用户要求：在记忆里能看到不同人的记忆）。
-        run {
-            val mems = Memories.listAll(this)
-            if (mems.isEmpty()) {
-                sub("（还没有记忆：在微信里判读一次就有了）")
-            } else {
-                sub("共 ${mems.size} 份。点一个名字，下面日志区就显示那个人的记忆：")
-                for (m in mems) {
-                    val label = m.name.ifEmpty { "（没读到名字）" }
-                    button("$label · ${m.turns.size} 条对话 · ${m.facts.size} 条事实") {
-                        logText.text = Memories.contextBlock(m).ifEmpty { "（这份记忆还是空的）" }
-                        toast("已显示「$label」的记忆")
-                    }
-                }
+        // 记忆内容不在 App 里展开，只报「有哪些人、各多少条」；想看细节就导出成文件自己翻（用户要求）。
+        val mems = Memories.listAll(this)
+        if (mems.isEmpty()) {
+            sub("（还没有记忆：在微信里判读一次就有了）")
+        } else {
+            val sb = StringBuilder("共 ").append(mems.size).append(" 份记忆：")
+            for (m in mems) {
+                sb.append("\n· ").append(m.name.ifEmpty { "（没读到名字）" })
+                    .append("　").append(m.turns.size).append(" 条对话 / ")
+                    .append(m.facts.size).append(" 条事实 / ")
+                    .append(m.scores.size).append(" 次评分")
             }
+            body(sb.toString())
+        }
+        button("导出记忆文件（复制一份出来，用文件管理器看）", filled = true) {
+            val n = exportMemories()
+            if (n < 0) toast("导出失败，看下面的日志", true) else toast("已导出 " + n + " 个文件")
         }
         button("清空全部记忆") {
             val n = Memories.clearAll(this)
@@ -876,6 +876,38 @@ class SettingsActivity : AppCompatActivity() {
     private fun margins(): LinearLayout.LayoutParams = LinearLayout.LayoutParams(
         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
     ).apply { topMargin = dp(8) }
+
+    /**
+     * 把 filesDir/memory 里的 json 复制到外部私有目录（不需要任何存储权限，文件管理器能翻），
+     * 返回复制了几个文件，失败返回 -1。
+     *
+     * 为什么不「直接打开 filesDir/memory」：那是应用私有目录，任何文件管理器都进不去，
+     * 系统也不会把打开它的权限给第三方 App —— 用户想看，只能由我们复制一份出来。
+     */
+    private fun exportMemories(): Int {
+        var n = -1
+        try {
+            val src = java.io.File(filesDir, "memory")
+            val dst = java.io.File(getExternalFilesDir(null), "memory")
+            if (dst.exists() || dst.mkdirs()) {
+                n = 0
+                val list = src.listFiles()
+                if (list != null) {
+                    for (f in list) {
+                        if (f.isFile && f.name.endsWith(".json")) {
+                            java.io.File(dst, f.name).writeBytes(f.readBytes())
+                            n = n + 1
+                        }
+                    }
+                }
+            }
+            AppLog.add("导出记忆：复制了 " + n + " 个文件到外部私有目录")
+        } catch (t: Throwable) {
+            AppLog.add("导出记忆失败：" + t.javaClass.simpleName)
+            n = -1
+        }
+        return n
+    }
 
     private fun dp(v: Int): Int = Math.round(v * resources.displayMetrics.density)
 

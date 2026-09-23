@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 只暴露 App 自己的外部私有目录，不给别的 App 任何多余访问权 -->
+<paths>
+    <external-files-path name="mem" path="memory/" />
+</paths>
