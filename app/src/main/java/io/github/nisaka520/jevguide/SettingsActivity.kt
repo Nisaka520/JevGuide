@@ -290,7 +290,7 @@ class SettingsActivity : AppCompatActivity() {
 
         val chatBase = edit(cfg.chatBaseUrl, "http://ABC.com/v1")
         val chatKey = edit(cfg.chatApiKey, "sk-…（只存在本机）", password = true)
-        val chatModel = edit(cfg.chatModel, "deepseek-chat")
+        val chatModel = edit(cfg.chatModel, "glm-4-flash")
         button("保存聊天模型配置") {
             cfg.chatBaseUrl = chatBase.text.toString().trim()
             cfg.chatApiKey = chatKey.text.toString().trim()
