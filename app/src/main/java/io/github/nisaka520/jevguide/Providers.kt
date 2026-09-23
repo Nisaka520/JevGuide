@@ -69,11 +69,11 @@ object Providers {
             id = "zhipu",
             name = "智谱 GLM（支持看图，默认付费档）",
             baseUrl = "https://open.bigmodel.cn/api/paas/v4",
-            chatModel = "glm-5.3",
+            chatModel = "glm-5.3-flash",
             visionModel = "glm-ocr",
             keyUrl = "https://open.bigmodel.cn/usercenter/apikeys",
             keyHint = "形如 xxxxxxxx.yyyyyyyy（带一个点）",
-            note = "默认走付费档：glm-5.3 写文案 + glm-ocr 读截图（专做 OCR，跟本 App 用途最对口）。" +
+            note = "默认走付费档：glm-5.3-flash 写文案（flash 档＝更快更便宜那一档）+ glm-ocr 读截图（专做 OCR，跟本 App 用途最对口）。" +
                 "新账号有赠送额度，够跑很久；想省钱就把上面两个模型改回 glm-4-flash 与 glm-4v-flash（免费档还在）。" +
                 "注意地址是 /v4 不是 /v1。"
         ),
