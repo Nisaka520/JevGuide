@@ -44,7 +44,7 @@ object Aff {
 
         // 硅基流动：控制台左侧「邀请好友」（或账户页里的邀请卡片），形如
         // https://cloud.siliconflow.cn/i/XXXXXX —— 双方都有额度奖励，以官网当期规则为准。
-        "siliconflow" to "",
+        "siliconflow" to "https://cloud.siliconflow.cn/i/xNN8gDyn",
 
         // 阿里云百炼：走的是阿里云账号级的「推荐返利 / 云大使」，链接是一条阿里云的推广短链
         // （不是百炼自己的 icode），在阿里云「云大使」页面生成后整条贴进来。
