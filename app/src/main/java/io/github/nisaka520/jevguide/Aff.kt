@@ -46,8 +46,14 @@ object Aff {
         // https://cloud.siliconflow.cn/i/XXXXXX —— 双方都有额度奖励，以官网当期规则为准。
         "siliconflow" to "https://cloud.siliconflow.cn/i/xNN8gDyn",
 
-        // 阿里云百炼：走的是阿里云账号级的「推荐返利 / 云大使」，链接是一条阿里云的推广短链
-        // （不是百炼自己的 icode），在阿里云「云大使」页面生成后整条贴进来。
+        // 阿里云百炼：走的是阿里云**账号级**的「云大使」，不是百炼自己的 icode。
+        //   · 云大使首页：https://dashi.aliyun.com/
+        //   · 百炼专门活动页「推荐百炼 瓜分万元奖励」：https://dashi.aliyun.com/activity/ai
+        //   · 官方「去哪拿我的专属链接」说明：https://help.aliyun.com/zh/document_detail/125340.html
+        // **选长链**（整条带 userCode 的 URL），别选短链或口令 —— App 是直接 ACTION_VIEW 打开的，
+        // 长链不经过跳转页，最稳。
+        // ⚠ 活动类链接**会过期**（贺岁/邀新那种都是限时的）：过期后按钮就点到一个失效页，
+        // 而 App 里写死的链接没法自动更新 —— 能拿云大使的长期链接就优先用长期的。
         "dashscope" to "",
 
         // 月之暗面 Kimi：**未核实**有没有稳定的邀请链接格式，有就填。
