@@ -61,10 +61,14 @@ object Aff {
         //   与这一格的用途（用户是来建 API 密钥的）根本不是一回事，填进去就是货不对板。
         "kimi" to "",
 
-        // 火山方舟：控制台里有个「限时邀请有礼」活动页，链接从那里拿。
+        // 火山方舟：有「限时邀请有礼」活动，在方舟控制台的活动页生成自己的邀请链接后整条贴进来。
+        //   官方文档：https://docs.volcengine.com/docs/82379/2165246?lang=zh
+        //   ⚠ 同样是限时活动，会过期 —— 过期后按钮落到失效页，记得回来换。
         "volcengine" to "",
 
-        // MiniMax：**未核实**。
+        // MiniMax：开放平台有 Referral Program，在那边生成邀请链接。
+        //   官方文档：https://platform.minimax.io/docs/token-plan/promotion
+        //   （国内站对应 platform.minimaxi.com，App 里这家用的就是国内站地址）
         "minimax" to "",
 
         // ── 官方没有邀请返利，留空就行 ──
