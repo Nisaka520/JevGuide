@@ -1,4 +1,4 @@
-package io.github.nisaka520.jevguide
+﻿package io.github.nisaka520.jevguide
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -13,6 +13,18 @@ import org.junit.Test
  * 所以把七种典型形态全钉成用例 —— 以后谁动了分段优先级，这些会先叫。
  */
 class ReplyPromptTest {
+
+    @Test
+    fun hardRulesCarryTheRiskAndTheBoundaries() {
+        // 风险必须进提示词，否则「对方在要验证码」时模型照样写热情话（审查发现的 S3）
+        val zh = ReplyPrompt.buildSystem("", "zh")
+        assertTrue(zh.contains("风险"))
+        assertTrue(zh.contains("性暗示"))
+        assertTrue(zh.contains("情绪绑架") || zh.contains("不在乎我"))
+        val en = ReplyPrompt.buildSystem("", "en")
+        assertTrue(en.contains("risk"))
+        assertTrue(en.contains("non-committal"))
+    }
 
     // ---------- (a) 标准：标题行 + --- 分隔 ----------
 

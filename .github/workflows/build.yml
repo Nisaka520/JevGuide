@@ -1,4 +1,4 @@
-name: build
+﻿name: build
 
 on:
   push:
@@ -26,15 +26,19 @@ jobs:
       - name: 单元测试（纯逻辑层）
         run: ./gradlew --no-daemon testDebugUnitTest
 
+      # 对外发的是 **release 变体**：没有 debuggable，也没有 debug 清单里那个 exported 的调试广播
+      # （debug 变体两者都有 —— 本机任意 App 发一条广播就能触发判读/截屏）。
+      # 签名走 build.gradle.kts 的兜底：CI 里没有 keystore.properties，就用仓库里那把公开的调试签名，
+      # 保证产物**装得上**、并且和以前的 debug 版是同一把钥匙（老用户还能覆盖升级）。
       - name: 打包 APK
-        run: ./gradlew --no-daemon assembleDebug
+        run: ./gradlew --no-daemon assembleRelease
 
       - name: 改个能认出来的文件名
         run: |
           mkdir -p out
-          cp app/build/outputs/apk/debug/app-debug.apk "out/JevGuide-${GITHUB_REF_NAME}-debug.apk"
-          # 再放一份不带版本号的：这样 releases/latest/download/JevGuide-debug.apk 永远是「最新版」直链
-          cp app/build/outputs/apk/debug/app-debug.apk "out/JevGuide-debug.apk"
+          cp app/build/outputs/apk/release/app-release.apk "out/JevGuide-${GITHUB_REF_NAME}.apk"
+          # 再放一份不带版本号的：这样 releases/latest/download/JevGuide.apk 永远是「最新版」直链
+          cp app/build/outputs/apk/release/app-release.apk "out/JevGuide.apk"
 
       - uses: actions/upload-artifact@v4
         with:

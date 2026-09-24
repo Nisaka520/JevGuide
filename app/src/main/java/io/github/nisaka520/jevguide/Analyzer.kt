@@ -105,6 +105,9 @@ object Analyzer {
                     val guide = v.guidePercent()
                     val trend = if (guide != null && lastScore != null) guide - lastScore else null
                     val lines = v.lines(cfg.emotionTop) + v.guideLine(trend)
+                    // 风险那行只喂给文案模型（界面上三行的口径不动）：
+                    // Jev 判出「对方在要验证码」时，写出来的话必须跟着变，而不是照样热情。
+                    val promptLines = v.riskLine()?.let { lines + it } ?: lines
 
                     // ── 记忆回写（先落盘再出文案：文案失败也不该丢记忆）──
                     if (memoryOn) {
@@ -121,7 +124,7 @@ object Analyzer {
 
                     // ── 候选文案（可选，失败只降级不报错）──
                     val drafts = if (cfg.draftsEnabled && cfg.hasChatKey()) {
-                        generateDrafts(cfg, memBlock, lines, state)
+                        generateDrafts(cfg, memBlock, promptLines, state)
                     } else {
                         emptyList()
                     }

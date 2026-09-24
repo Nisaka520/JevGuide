@@ -1,8 +1,10 @@
-package io.github.nisaka520.jevguide
+﻿package io.github.nisaka520.jevguide
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class VerdictParseTest {
@@ -36,6 +38,20 @@ class VerdictParseTest {
       "reply_style":{"type":"choice","choice":"normal_chat","probabilities":{"normal_chat":0.90}}
     }}
     """.trimIndent()
+
+    @Test
+    fun riskLineFeedsThePromptButNotTheUi() {
+        // 低风险（0.09）不占提示词位置；高风险才给出一行可执行的提醒
+        assertNull(Verdicts.parse(zhBody, "zh")!!.riskLine())
+        val hot = Verdicts.parse(zhBody.replace("0.09", "0.90"), "zh")!!
+        val line = hot.riskLine()
+        assertNotNull(line)
+        assertTrue(line!!.contains("风险：0.90"))
+        assertTrue(line.contains("偏高"))
+        // 但界面上那三行的口径不动：风险**不并进** lines()
+        assertEquals(3, hot.lines(3).size)
+        assertFalse(hot.lines(3).any { it.contains("风险") })
+    }
 
     @Test
     fun parsesChineseAnswersAndFormatsThreeLines() {

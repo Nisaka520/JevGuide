@@ -43,6 +43,17 @@ class Config(ctx: Context) {
         get() = sp.getBoolean("show_analyzing", true)
         set(v) = sp.edit().putBoolean("show_analyzing", v).apply()
 
+    /**
+     * 已同意的首启须知版本（0 = 还没同意过）。
+     *
+     * 存的是**版本号**而不是布尔：须知改了内容是会漂移的（本项目就栽过一次 ——
+     * 无障碍说明写着"也不截屏"而实际会截屏），所以 [Privacy.VERSION] 一加，
+     * 用户下次打开会重新被问一次，而不是永远吃老版本的同意。
+     */
+    var consentVersion: Int
+        get() = sp.getInt("consent_version", 0)
+        set(v) = sp.edit().putInt("consent_version", v).apply()
+
     /** 检测到对方新消息就自动判读（默认关，避免打扰） */
     var autoAnalyze: Boolean
         get() = sp.getBoolean("auto_analyze", false)

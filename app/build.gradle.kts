@@ -56,9 +56,16 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
         release {
-            // 有 keystore.properties 就签正式名，没有就留空（debug 不受影响）
-            if (rootProject.file("keystore.properties").exists()) {
-                signingConfig = signingConfigs.getByName("release")
+            // 对外分发用的是 **release 变体**：没有 debuggable，也没有 debug 清单里那个 `exported` 的调试广播
+            // （debug 变体两者都有 —— 本机任意 App 发一条广播就能触发判读/截屏）。
+            //
+            // 签名：本地有 keystore.properties 就用正式名；**没有就用仓库里那把公开的调试签名** ——
+            // CI 里没有 keystore.properties，不这样兜底的话 assembleRelease 出来的是**未签名包**（根本装不上）。
+            // 要上架应用商店请自己配 keystore.properties（.gitignore 已排除，绝不会进仓库）。
+            signingConfig = if (rootProject.file("keystore.properties").exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
             }
             /*
              * 这里**故意不开** R8/资源压缩。

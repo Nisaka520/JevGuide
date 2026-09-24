@@ -2,7 +2,7 @@
 
 微信聊天里的**关系进展助手**：读屏 → Jev 判读 + 攻略度评分 → 聊天模型出 3 条候选回复，攻略度**常驻挂在屏幕上**。
 
-> **介绍页**：<https://nisaka520.github.io/JevGuide/> ｜ **下载**：[最新版 APK](https://github.com/Nisaka520/JevGuide/releases/latest)
+> **介绍页**：<https://nisaka520.github.io/JevGuide/> ｜ **下载**：[最新版 APK](https://github.com/Nisaka520/JevGuide/releases/latest) ｜ **隐私政策**：[PRIVACY.md](PRIVACY.md)（[网页版](https://nisaka520.github.io/JevGuide/privacy.html)）
 
 跟同门两个东西的分工：
 
@@ -194,13 +194,14 @@ HTTP 400  {"detail": "Too many score levels. Must have at most 10 levels."}
 ```bash
 # 需要 JDK 17 + Android SDK（platform 35）
 # local.properties 写 sdk.dir=...（或设 ANDROID_HOME）
-./gradlew.bat assembleDebug        # 产物 app/build/outputs/apk/debug/app-debug.apk
-./gradlew.bat testDebugUnitTest    # 纯逻辑单测（132 个，不依赖设备）
+./gradlew.bat assembleRelease      # 对外分发的那个（产物 app/build/outputs/apk/release/app-release.apk）
+./gradlew.bat assembleDebug        # 调试包：包名带 .debug、可 adb 调试（产物 .../apk/debug/app-debug.apk）
+./gradlew.bat testDebugUnitTest    # 纯逻辑单测（140 个，不依赖设备）
 ```
 
 ### 装到手机
 
-1. 装 `app-debug.apk`（**不需要 root**）
+1. 装 Release 里下的那份 APK（**不需要 root**；它是 `release` 变体，不是 `debug` 变体）
 2. 打开 App → 「去开启无障碍」→ 系统设置里找到 **弦外之音** → 开启
 3. 填密钥：
    - **Jev 密钥**（`apikey_…`，判读与攻略度用）：[console.typesafe.ai](https://console.typesafe.ai) 登录 → API Keys → 新建

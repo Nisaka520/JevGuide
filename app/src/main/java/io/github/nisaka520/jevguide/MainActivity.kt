@@ -62,6 +62,9 @@ class MainActivity : AppCompatActivity() {
         }
         setContentView(scroll)
 
+        // 首启先把"要读聊天内容并上传到你配的接口"讲清楚、拿到明确同意（详见 maybeAskConsent）
+        maybeAskConsent()
+
         title("弦外之音")
         sub("点下面任一项进设置。判读本身不用打开这个 App —— 在微信里点浮条就行。")
 
@@ -239,6 +242,46 @@ class MainActivity : AppCompatActivity() {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
         } catch (_: Exception) {
         }
+    }
+
+    /**
+     * 首启须知：读微信聊天内容、并把内容发给你自己配置的第三方接口 —— 这两件事必须先有**明确的同意**。
+     *
+     * 为什么不能"装完即生效"：应用商店（尤其 Google Play 的无障碍政策）与《个人信息保护法》
+     * 都要求"醒目披露 + 明确的同意动作"，而且**不能只写在隐私政策里**。
+     * 不同意就退出 —— 不同意的话这个 App 没有可用的形态，它本来就是靠读聊天干活的。
+     * 披露正文与版本号集中在 [Privacy]：改了它就会重新问一次。
+     */
+    private fun maybeAskConsent() {
+        val cfg = Config(this)
+        if (cfg.consentVersion >= Privacy.VERSION) return
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("使用前请先确认")
+            .setMessage(Privacy.disclosure())
+            .setCancelable(false)
+            .setPositiveButton("我同意") { _, _ ->
+                cfg.consentVersion = Privacy.VERSION
+                AppLog.add("已同意首启须知 v" + Privacy.VERSION)
+            }
+            .setNegativeButton("不同意") { _, _ ->
+                toast("不同意就先别用 —— 它本来就是靠读聊天干活的")
+                finish()
+            }
+            .setNeutralButton("打开隐私政策") { _, _ ->
+                try {
+                    startActivity(
+                        android.content.Intent(
+                            android.content.Intent.ACTION_VIEW,
+                            android.net.Uri.parse(Privacy.URL)
+                        )
+                    )
+                } catch (e: Exception) {
+                    toast("打不开浏览器，地址是：" + Privacy.URL)
+                }
+                // 点了按钮对话框就关了，看完再问一次
+                page.postDelayed(Runnable { maybeAskConsent() }, 800)
+            }
+            .show()
     }
 
     private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()

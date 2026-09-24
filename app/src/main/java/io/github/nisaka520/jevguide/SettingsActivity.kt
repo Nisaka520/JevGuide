@@ -1,4 +1,4 @@
-package io.github.nisaka520.jevguide
+﻿package io.github.nisaka520.jevguide
 
 import android.Manifest
 import android.content.Intent
@@ -540,6 +540,19 @@ class SettingsActivity : AppCompatActivity() {
                 "免责：只读屏幕上已经显示的内容，不代替你说话、不自动发送；聊天记录的去向取决于你配的端点，" +
                 "请自行确认对方的隐私政策。请勿用于骚扰、跟踪或任何违法用途。"
         )
+        // 完整说明（数据种类、去向、保留与删除）—— 上架时商店要的就是这个 URL
+        button("隐私政策（完整说明：数据种类、去向、保留与删除）") {
+            try {
+                startActivity(
+                    android.content.Intent(
+                        android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse(Privacy.URL)
+                    )
+                )
+            } catch (e: Exception) {
+                toast("打不开浏览器，地址是：" + Privacy.URL)
+            }
+        }
 
         // ── 高级设置（首页第七个入口）──
         section("高级设置（给聊天模型加要求）", "adv", 0xFF7FB3FF.toInt())

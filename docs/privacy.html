@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>隐私政策 · 弦外之音（JevGuide）</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><text y='48' font-size='48'>💬</text></svg>">
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0 auto; max-width: 760px; padding: 32px 20px 64px;
+    font: 16px/1.75 -apple-system, "Segoe UI", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+    background: #faf9fc; color: #1b1b1f;
+  }
+  @media (prefers-color-scheme: dark) { body { background: #131316; color: #e5e1e6; } }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-top: 8px; border-top: 1px solid rgba(128,128,140,.25); }
+  .meta { color: #6b6b76; font-size: 14px; margin-bottom: 24px; }
+  .lead { padding: 14px 16px; border-radius: 12px; background: rgba(120,120,255,.10); border: 1px solid rgba(120,120,255,.25); }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 15px; }
+  th, td { border: 1px solid rgba(128,128,140,.30); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: rgba(128,128,140,.12); }
+  code { background: rgba(128,128,140,.16); padding: 1px 5px; border-radius: 5px; font-size: 14px; }
+  a { color: #4a5cf5; }
+  @media (prefers-color-scheme: dark) { a { color: #b3c4ff; } }
+  .warn { border-left: 3px solid #d08a00; padding-left: 12px; }
+  footer { margin-top: 44px; color: #6b6b76; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<h1>隐私政策 · 弦外之音（JevGuide）</h1>
+<p class="meta">最后更新：2026-09-24 ｜ 适用版本：1.3.1 及以后</p>
+
+<p class="lead">
+一句话版本：<b>你的密钥、联系人与聊天记忆都只存在这台手机上；但判读与写文案本身必然要把当前聊天内容
+发给你自己配置的两个第三方接口</b> —— 这一点在下面写清楚了，请先读完再决定用不用。<br><br>
+这是个人开源项目（<a href="https://github.com/Nisaka520/JevGuide">GitHub</a>），不是公司产品：
+没有账号体系、没有服务器、没有统计与广告 SDK。
+</p>
+
+<h2>1. 这个 App 做什么</h2>
+<p>在微信里读取<b>当前打开的那一个聊天窗口</b>里已经显示出来的内容，判断关系进展（「攻略度」百分比），
+再调用你自己配置的聊天模型生成几条候选回复文案，供你自己决定要不要发、怎么改。</p>
+<p>它<b>不修改微信、不代替你发送任何消息、不注入点击</b>，也不读取微信以外的任何 App
+（唯一的例外见第 3 条的「视觉读屏」——那一步之前会校验前台必须是微信）。</p>
+
+<h2>2. 收集与处理哪些信息</h2>
+<table>
+<tr><th>信息</th><th>用途</th><th>是否离开本机</th></tr>
+<tr><td>微信当前聊天窗口的可见文字</td><td>判读关系进展、生成候选文案</td><td><b>会</b> — 发给第 4 条的两个接口</td></tr>
+<tr><td>截图（仅视觉读屏模式，仅当前台是微信）</td><td>让看得懂图的模型把画面转成文字</td><td><b>会</b> — 同上；<b>不落盘</b>，转完即丢</td></tr>
+<tr><td>联系人备注/关系设定（你自己填的）</td><td>让判读与文案知道「她是谁、什么关系」</td><td><b>会</b> — 作为判读输入的一部分</td></tr>
+<tr><td>长期记忆（摘要、关键事实、历次攻略度、近期对话）</td><td>让判读与文案有连贯的记忆</td><td><b>会</b> — 作为判读输入的一部分</td></tr>
+<tr><td>你自己填的 API 密钥</td><td>调用上面两个接口</td><td><b>不会</b>（只在本机；请求时按协议放在请求头里发给对应接口）</td></tr>
+<tr><td>判读结果与日志（本机缓冲区）</td><td>排错；设置页里给你自己看</td><td>不会（除非你自己点「分享最近诊断」）</td></tr>
+<tr><td>诊断抓屏文件（你点「诊断抓屏」才生成）</td><td>排查「读不到消息」</td><td>不会自动发；文件含聊天原文，仅本机</td></tr>
+</table>
+<p><b>作者不收集任何数据。</b>本项目没有服务器、没有埋点、没有崩溃上报、没有第三方统计或广告 SDK；
+运行期依赖只有 AndroidX 与 Material。App 里没有任何一处代码会把数据发往作者。</p>
+
+<h2>3. 权限与它们的用途</h2>
+<table>
+<tr><th>权限</th><th>用途</th><th>可拒绝吗</th></tr>
+<tr><td>无障碍服务（AccessibilityService）</td><td>读取微信当前聊天窗口的文字 —— 核心功能，没有它 App 无法工作</td><td>可以不开，但就只剩设置页</td></tr>
+<tr><td>通知</td><td>常驻一条通知，作为「判读一下」的入口</td><td>可以拒绝，功能仍在</td></tr>
+<tr><td>网络</td><td>调用你自己配置的判读接口与聊天模型接口</td><td>不可拒绝</td></tr>
+</table>
+<p>无障碍服务<b>只订阅微信</b>（<code>com.tencent.mm</code>），只读、不点击。
+视觉读屏（截屏）只在「微信屏蔽了无障碍树 + 你选了视觉读屏 + 当前前台就是微信」三者同时成立时才发生。</p>
+
+<h2>4. 数据发给谁</h2>
+<p>本 App <b>没有自己的服务器</b>。它只把第 2 条列出的内容发往<b>你自己在设置里填写</b>的两个地址：</p>
+<ol>
+<li><b>判读接口（Jev / typesafe.ai）</b>：默认 <code>https://api.typesafe.ai/v1/systemone</code> —— 关系判读与攻略度。
+该服务由第三方运营（<a href="https://typesafe.ai">typesafe.ai</a>），服务器在境外（美国）。密钥决定请求归属你的账号。</li>
+<li><b>聊天模型接口</b>：默认智谱 GLM（<code>https://open.bigmodel.cn/api/paas/v4</code>），
+也可填任何 OpenAI 兼容端点（DeepSeek、硅基流动、阿里云百炼、Kimi、火山方舟、MiniMax、自建中转等）——
+完全由你自己选择。</li>
+</ol>
+<p class="warn">这两次请求的内容<b>必然包含对方说的话</b>。请注意：</p>
+<ul>
+<li>你没有、也很难替<b>对方</b>做出同意。请自行确认你有权这样处理这些内容。</li>
+<li>如果其中一家在境外，那就构成《个人信息保护法》意义上的<b>跨境提供</b>，需你自行判断是否可接受。</li>
+<li>具体某家服务商如何处理、留存多久，取决于<b>该服务商自己的隐私政策</b>，本 App 无法控制也无从知晓。</li>
+</ul>
+
+<h2>5. 数据存在哪、留多久、怎么删</h2>
+<ul>
+<li><b>密钥、联系人表、日志</b>：本机应用私有目录（SharedPreferences）。</li>
+<li><b>长期记忆</b>：本机 <code>filesDir/memory/*.json</code>。</li>
+<li><b>保留时间</b>：直到你删除，或卸载 App（已关闭云备份，并排除 Android 12 起的「设备到设备直传」——
+换机不会带走密钥与记忆）。</li>
+<li><b>怎么删</b>：设置页 →「维护」→「清空全部记忆与设置」；也可以直接卸载。诊断抓屏文件可自己删除。</li>
+</ul>
+
+<h2>6. 未成年人</h2>
+<p>本 App 面向成年人，用于成年人之间的沟通参考；不面向未成年人，也不收集年龄信息。</p>
+
+<h2>7. 与微信的关系</h2>
+<p>本 App 不是腾讯或微信的官方产品，与腾讯无任何关联、未获其授权或认可。
+它读取的是<b>你自己手机上、你自己已经能看到</b>的聊天窗口内容，不修改微信、不代替你发送消息。
+请注意微信用户协议对「第三方工具访问/读取界面与数据」有相应限制条款，<b>是否使用及后果由你自己判断与承担</b>。</p>
+
+<h2>8. 免责</h2>
+<p>判读结果与候选文案由第三方大模型生成，<b>是模型判断，不是测量</b>（攻略度只是模型给的一个数），
+可能出错、可能不合适。是否发送、发送什么，始终由你决定；由此产生的一切后果由使用者承担。</p>
+
+<h2>9. 变更</h2>
+<p>本政策如有修改，会更新顶部日期，并提高 App 内的「须知版本号」——升级后第一次打开会重新让你确认一次。</p>
+
+<h2>10. 联系方式</h2>
+<p>问题、异议或投诉：<a href="https://github.com/Nisaka520/JevGuide/issues">开 issue</a>。</p>
+
+<footer>
+<a href="./">← 回介绍页</a> ｜ <a href="https://github.com/Nisaka520/JevGuide">源码</a> ｜
+MIT License ｜ 本项目不隶属于微信或腾讯。
+</footer>
+
+</body>
+</html>

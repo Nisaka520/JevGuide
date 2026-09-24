@@ -199,7 +199,9 @@ object ReplyPrompt {
         append("【硬性约束】\n")
         append("- 必须遵守上面 Jev 给出的回复姿态与关系设定：关系决定称呼和亲疏，姿态决定语气，不能反过来。\n")
         append("- 不要承诺做不到的事（借钱、担保、拍死的时间点，做不到就别写）。\n")
-        append("- 不涉及钱、验证码、账号密码、链接等敏感内容，也不要引导对方提供这些。\n")
+        append("- 不主动提钱、不承诺给钱、不给链接与验证码、不引导对方提供这些；对方问到时只写「我先核实一下」。\n")
+        append("- 判读里出现「风险」且偏高时：这一段必须用**不给定论**的写法（「这个我得先核实一下」），不许答应、不许承诺、不许催。\n")
+        append("- 不涉及身体、性暗示、外貌评价；不用情绪绑架，也不写「你不回我就是不在乎我」这类试探。\n")
         append("- 不编造事实，不虚构没发生过的约定；不确定的事就用「我先确认一下」这种说法。\n")
         append("- 只输出候选回复本身，不要输出任何分析过程或前后缀说明。")
     }
@@ -233,7 +235,9 @@ object ReplyPrompt {
         append("[Hard rules]\n")
         append("- Follow the reply stance and the relationship setting that Jev reported above; the relationship decides the form of address.\n")
         append("- Never promise anything you cannot deliver (no loans, no guarantees, no impossible deadlines).\n")
-        append("- No money, verification codes, passwords or links, and never ask the other side for them.\n")
+        append("- Do not raise money, never promise it, send no links, passwords or codes, and never ask for them; if they ask, reply non-committally (\"let me check on that first\").\n")
+        append("- If the verdict reports a high risk: keep every section non-committal - promise nothing, agree to nothing, push for nothing.\n")
+        append("- No body, sexual innuendo or looks-based comments; no emotional blackmail, no jealous probing (\"if you don't reply you don't care\").\n")
         append("- Do not invent facts or agreements that never happened.\n")
         append("- Output only the drafts themselves, with no analysis and no surrounding commentary.")
     }

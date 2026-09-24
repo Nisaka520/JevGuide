@@ -1,4 +1,4 @@
-package io.github.nisaka520.jevguide
+﻿package io.github.nisaka520.jevguide
 
 /**
  * 一次判读的结果 + 固定 3 条 Toast 的排版（纯逻辑，可单测）。
@@ -69,6 +69,23 @@ data class Verdict(
         if (s.isEmpty()) return "建议：—"
         val clean = if (s.startsWith("建议")) s.substring(2) else s
         return "建议：" + clean + pct(styleP)
+    }
+
+    /**
+     * ④ 风险 —— 判读里最该被**文案模型**看见的一项。
+     *
+     * 为什么单独拎出来：`risk` 原来只在 [detail]（设置页那行「最近一次结果」）里出现，
+     * 而进文案提示词的只有 lines 加建议姿态那一句。结果就是 Jev 判出「风险 0.90」时，
+     * 文案模型完全不知道，照样写热情正常的三条 —— 而硬性约束只写了「不涉及钱/验证码」，
+     * 那是措辞禁令，不是警惕提醒。这一行是给提示词用的。
+     * **不并进 [lines]**：那三行是给界面看的（浮条/结果页/toast），口径不动。
+     */
+    fun riskLine(): String? {
+        val r = risk ?: return null
+        // 0.3 以下不进提示词：那是「几乎没事」，塞进去只会让模型过度戒备，把正常聊天写成立案
+        if (r < 0.3) return null
+        val what = if (r >= 0.5) "偏高：对方可能在要钱/要验证码/发链接，或在施压" else "需要留意"
+        return "风险：" + fmt(r) + "（" + what + "）"
     }
 
     fun lines(emotionCount: Int = 3): List<String> = listOf(coreLine(emotionCount), urgencyLine(), adviceLine())
