@@ -54,7 +54,7 @@ object Aff {
         // 长链不经过跳转页，最稳。
         // ⚠ 活动类链接**会过期**（贺岁/邀新那种都是限时的）：过期后按钮就点到一个失效页，
         // 而 App 里写死的链接没法自动更新 —— 能拿云大使的长期链接就优先用长期的。
-        "dashscope" to "",
+        "dashscope" to "https://dashi.aliyun.com/activity/ai?source=5176.29345612&userCode=i9q3mkfj",  // ⚠ 活动页链接，过期了要换
 
         // 月之暗面 Kimi：**未核实**有没有稳定的邀请链接格式，有就填。
         "kimi" to "",
