@@ -1,7 +1,5 @@
 ﻿package io.github.nisaka520.jevguide
 
-import java.io.BufferedReader
-import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
@@ -133,9 +131,8 @@ object ChatHttp {
             val code = conn.responseCode
             // 非 2xx 时 body 在 errorStream 里，那里面往往正是"为什么失败"的原文
             val stream = if (code in 200..299) conn.inputStream else conn.errorStream
-            val text = stream?.let {
-                BufferedReader(InputStreamReader(it, Charsets.UTF_8)).use { r -> r.readText() }
-            }.orEmpty()
+            // 带上限地读：端点由用户自己填，响应体长度不受本项目控制
+            val text = stream?.let { HttpRead.text(it) }.orEmpty()
             if (code in 200..299) ChatResult.Ok(text) else ChatResult.Err(explain(code, text))
         } catch (e: java.net.SocketTimeoutException) {
             ChatResult.Err("请求超时（模型慢或网络差），调大超时或稍后再试")

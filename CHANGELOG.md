@@ -1,9 +1,41 @@
-# 更新日志
+﻿# 更新日志
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
 > 本项目从 **JevBystander** 的读屏底座拆出来（同一套无障碍读取与判读口径），
 > 加上聊天模型、攻略度与本地记忆。JevBystander 自己的版本记录在它的仓库里。
+
+## [1.3.1] - 2026-09-24
+
+这一版全部来自一次**应用审核**（四个只读审查 agent，从代码工程 / 隐私安全 / 上架合规 / 提示词质量
+四个角度各过一遍）。修的都是审查里**复核确认**的真问题，功能设计一个没动。
+
+### 修复
+
+- **视觉读屏补上前台校验**：`VisionReader.foregroundIsWeChat` 原来只有定义、**零调用** ——
+  视觉模式下手动触发判读时，前台是银行/验证码/别人聊天也会照截照发。现在前台不是微信就直接跳过。
+  设置页那个「测试视觉读屏」同时改成**3 秒后截当前屏幕**（原来立刻截，截到的必然是设置页自己），文案改诚实。
+- **判读线程加了统一收口**（`Analyzer.guarded`）：`running` 这道闸门原来没有 try/finally，
+  而线程体里的 `Verdicts.parse` → `Json.parse`（递归下降）遇到畸形/超深响应会抛 `StackOverflowError`
+  （Error，内层 catch 接不住）。一旦漏掉，`busy()` 永远为真：自动模式不动、手动入口一直弹
+  「上一次还在判读」，只能杀进程恢复。
+- **响应体读取加上限**（新 `HttpRead`，512K 字符）：原来是 `readText()` 全量读 ——
+  响应体是外部输入，等于把 OOM 的机会交给对方。
+- **JSON 解析加深度上限**（64 层）：超限就停止下钻并返回 null，「解析器永不抛」这条纪律不变。
+- **记忆去重改成「最长重叠」**：原来只跟末尾一条比，而调用方给的是**整屏** ——
+  同一屏再抓一次会把整屏重复记账（`[A,B,C]` → `[A,B,C,A,B,C]`）：40 条上限被重复项撑满、
+  有效历史只剩几条，摘要模型也跟着吃重复内容。
+- **无障碍说明不再说假话**：`a11y_desc` 原来写着「也不截屏」，而视觉读屏真的会截屏 ——
+  那是用户在系统设置里**唯一**会读到的说明，改成如实描述；`docs/index.html` 里那两句一并修掉。
+
+### 新增
+
+- **换机迁移排除规则**（`res/xml/data_extraction_rules.xml`）：`allowBackup="false"` 在 targetSdk 31+
+  只停掉云备份、**不停** Android 12 起的「设备到设备直传」；不排除的话，换新机时两把密钥与全部聊天记忆会一起被搬过去。
+
+### 测试
+
+- 新增 `HttpReadTest`（4 个）、`JsonTest.deepNestingDoesNotBlowTheStack`、`MemoryTest.sameScreenTwiceIsNotAppendedAgain` —— 单测 **132 → 138 个，全绿**（`LiveJevSmokeTest` 要密钥，默认跳过）。
 
 ## [1.3.0] - 2026-09-23
 

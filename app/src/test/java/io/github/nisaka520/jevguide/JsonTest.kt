@@ -1,4 +1,4 @@
-package io.github.nisaka520.jevguide
+﻿package io.github.nisaka520.jevguide
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -21,6 +21,16 @@ class JsonTest {
     fun handlesEscapesAndUnicode() {
         val o = Json.obj(Json.parse("""{"s":"a\"b\\c\nd\u4e2d\u6587"}"""))
         assertEquals("a\"b\\c\nd中文", Json.str(o["s"]))
+    }
+
+    @Test
+    fun deepNestingDoesNotBlowTheStack() {
+        // 畸形/恶意输入能构造出任意深的嵌套，而 StackOverflowError 是 Error ——
+        // 上层 catch(Exception) 接不住，只能解析器自己停住（见 Json 里那个 maxDepth）
+        Json.parse("[".repeat(100_000))   // 不抛、不爆栈就算过
+        // 正常深度完全不受影响
+        val o = Json.obj(Json.parse("""{"a":{"b":{"c":[1,{"d":"e"}]}}}"""))
+        assertEquals("e", Json.str(Json.at(o, "a.b.c.1.d")))
     }
 
     @Test

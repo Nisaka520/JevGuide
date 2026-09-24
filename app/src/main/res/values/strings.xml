@@ -3,5 +3,5 @@
     <string name="app_name">弦外之音</string>
     <string name="service_label">弦外之音 · 微信判读</string>
     <string name="tile_label">攻略一下</string>
-    <string name="a11y_desc">只读取微信当前聊天窗口里已经显示出来的文字，用来分析关系进展（攻略度）并生成回复候选文案。不修改、不发送任何消息，也不截屏；记忆与结果只存在本机。</string>
+    <string name="a11y_desc">只读取微信当前聊天窗口里显示的内容，用来分析关系进展（攻略度）并生成回复候选文案。微信屏蔽无障碍树时会截屏（仅在你选了视觉读屏、且当前前台就是微信时）交给你自己配置的模型识别；不修改、不发送任何消息；记忆与结果只存在本机。</string>
 </resources>

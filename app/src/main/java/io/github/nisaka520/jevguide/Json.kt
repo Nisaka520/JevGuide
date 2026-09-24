@@ -1,4 +1,4 @@
-package io.github.nisaka520.jevguide
+﻿package io.github.nisaka520.jevguide
 
 /**
  * 极简 JSON：解析 Jev 的 answers、读写本地联系人表。
@@ -106,6 +106,14 @@ object Json {
     private class P(private val s: String) {
         private var i = 0
 
+        /**
+         * 当前嵌套深度。深嵌套是外部输入能构造出来的「打爆栈」手段（`[[[[…`），
+         * 而 `StackOverflowError` 是 Error，上层的 `catch (Exception)` 一律接不住 ——
+         * 只能靠**不去递归**来防。正常响应都在 5 层以内，64 足够。
+         */
+        private var depth = 0
+        private val maxDepth = 64
+
         fun ws() {
             while (i < s.length && s[i].isWhitespace()) i++
         }
@@ -113,14 +121,25 @@ object Json {
         fun value(): Any? {
             ws()
             if (i >= s.length) return null
-            return when (s[i]) {
-                '{' -> objValue()
-                '[' -> arrValue()
-                '"' -> strValue()
-                't' -> literal("true", true)
-                'f' -> literal("false", false)
-                'n' -> literal("null", null)
-                else -> numValue()
+            if (depth >= maxDepth) {
+                // 超限就不再往下钻：把剩余输入视为已消费，返回 null。
+                // 「解析器永不抛」这条纪律保持不变（调用方本来就按 null 兜底）。
+                i = s.length
+                return null
+            }
+            depth++
+            try {
+                return when (s[i]) {
+                    '{' -> objValue()
+                    '[' -> arrValue()
+                    '"' -> strValue()
+                    't' -> literal("true", true)
+                    'f' -> literal("false", false)
+                    'n' -> literal("null", null)
+                    else -> numValue()
+                }
+            } finally {
+                depth--
             }
         }
 

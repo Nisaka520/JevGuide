@@ -1,7 +1,5 @@
-package io.github.nisaka520.jevguide
+﻿package io.github.nisaka520.jevguide
 
-import java.io.BufferedReader
-import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
@@ -56,9 +54,8 @@ object JevHttp {
             OutputStreamWriter(conn.outputStream, Charsets.UTF_8).use { it.write(body) }
             val code = conn.responseCode
             val stream = if (code in 200..299) conn.inputStream else conn.errorStream
-            val text = stream?.let {
-                BufferedReader(InputStreamReader(it, Charsets.UTF_8)).use { r -> r.readText() }
-            }.orEmpty()
+            // 带上限地读：响应体是外部输入，无上限的 readText() 等于把 OOM 的机会交给对方
+            val text = stream?.let { HttpRead.text(it) }.orEmpty()
             if (code in 200..299) {
                 JevResult.Ok(text)
             } else {

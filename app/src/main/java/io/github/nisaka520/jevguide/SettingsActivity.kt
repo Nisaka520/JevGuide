@@ -418,9 +418,8 @@ class SettingsActivity : AppCompatActivity() {
             toast("已保存（模型：" + VisionReader.endpointOf(cfg).third + "）")
             refreshDynamic()
         }
-        button("测试视觉读屏（现在截一张，看读到什么）") {
-            val svc = WatchService.instance
-            if (svc == null) {
+        button("测试视觉读屏（3 秒后截当前屏幕）") {
+            if (WatchService.instance == null) {
                 toast("无障碍服务没在运行")
                 return@button
             }
@@ -428,23 +427,28 @@ class SettingsActivity : AppCompatActivity() {
                 toast("系统低于 Android 11，用不了无障碍截图")
                 return@button
             }
-            toast("正在截图识别…")
-            VisionReader.capture(svc, cfg) { d, err ->
-                runOnUiThread {
-                    if (d == null) {
-                        logText.text = "视觉读屏失败：\n" + (err ?: "未知原因")
-                        toast("失败：" + (err ?: "未知原因"), true)
-                    } else {
-                        val sb = StringBuilder()
-                        sb.append("视觉读屏读到（标题=「").append(d.title).append("」）：\n")
-                        sb.append("共 ").append(d.msgs.size).append(" 条，其中对方 ")
-                            .append(d.msgs.count { !it.mine }).append(" 条\n\n")
-                        d.msgs.forEach { sb.append(if (it.mine) "我：" else "对方：").append(it.text).append('\n') }
-                        logText.text = sb.toString()
-                        toast("读到 ${d.msgs.size} 条（对方 ${d.msgs.count { !it.mine }} 条）")
+            // 截的是**当前屏幕**（不限于微信），所以留 3 秒让用户切到要测的界面。
+            // 原来立刻截 —— 截到的必然是设置页自己：既测不出东西，还把设置页发给了模型。
+            toast("3 秒后截当前屏幕，现在切到要测的界面…", true)
+            logText.postDelayed(Runnable {
+                val svc = WatchService.instance ?: return@Runnable
+                VisionReader.capture(svc, cfg) { d, err ->
+                    runOnUiThread {
+                        if (d == null) {
+                            logText.text = "视觉读屏失败：\n" + (err ?: "未知原因")
+                            toast("失败：" + (err ?: "未知原因"), true)
+                        } else {
+                            val sb = StringBuilder()
+                            sb.append("视觉读屏读到（标题=「").append(d.title).append("」）：\n")
+                            sb.append("共 ").append(d.msgs.size).append(" 条，其中对方 ")
+                                .append(d.msgs.count { !it.mine }).append(" 条\n\n")
+                            d.msgs.forEach { sb.append(if (it.mine) "我：" else "对方：").append(it.text).append('\n') }
+                            logText.text = sb.toString()
+                            toast("读到 ${d.msgs.size} 条（对方 ${d.msgs.count { !it.mine }} 条）")
+                        }
                     }
                 }
-            }
+            }, 3000)
         }
 
         // 常驻悬浮条

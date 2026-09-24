@@ -123,8 +123,8 @@
 <section>
   <h2>隐私</h2>
   <div class="card">
-    <p>密钥、联系人表、日志在本机 SharedPreferences；每个联系人的记忆在本机 <code>filesDir/memory/</code>，卸载即消失。没有云端、没有统计、<b>运行期零第三方依赖</b>（连 OkHttp/Gson 都没引）。</p>
-    <p>只把<b>当前会话相关内容</b>发给两个接口：Jev（判读/攻略度）和你自己配的聊天模型（文案）。不修改、不发送任何消息，也不截屏。</p>
+    <p>密钥、联系人表、日志在本机 SharedPreferences；每个联系人的记忆在本机 <code>filesDir/memory/</code>，卸载即消失。没有云端、没有统计、<b>没有第三方统计与广告 SDK</b>（HTTP 与 JSON 都是自己写的，连 OkHttp/Gson 都没引；运行期只依赖 AndroidX 与 Material）。</p>
+    <p>只把<b>当前会话相关内容</b>发给两个接口：Jev（判读/攻略度）和你自己配的聊天模型（文案）。不修改、不发送任何消息。<b>不主动截屏</b> —— 只有「微信屏蔽了无障碍树」且你选了视觉读屏时，才会截取当前屏幕（仅当前台是微信）交给你自己配的模型识别，截图不落盘。</p>
   </div>
 </section>
 

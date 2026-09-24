@@ -187,24 +187,45 @@ internal fun trimSummary(s: String, cap: Int = Memories.MAX_SUMMARY): String {
 }
 
 /**
- * 去重追加：只跟**末尾那条**比（文本 trim 相同 + 侧别相同 → 跳过）。
+ * 去重追加：求 `existing` 的后缀 与 `incoming` 的前缀 的**最长重叠**，只追加多出来的部分。
  *
- * 为什么只比末尾：抓屏每次读到的都是"整屏可见消息"，一屏里前面几条跟上次完全一样，
- * 全量比对要 O(n²)，而且"同一句话连发两条"会被误吃。只挡"末尾重复"就够用 ——
- * 重复灌入的特征就是新读的一屏以旧屏的最后一条开头（Digest.dedupeLines 同一思路）。
+ * 为什么要算重叠：抓屏每次读到的都是"整屏可见消息"，一屏里前面几条跟上次完全一样。
+ * 原来只跟**末尾那条**比 —— 但同一屏再抓一次时，新屏的首条并不等于旧屏的末条，
+ * 于是整屏被重复追加（`[A,B,C]` → `[A,B,C,A,B,C]`）：40 条的 MAX_TURNS 被重复项撑满、
+ * 有效历史只剩几条，摘要模型也跟着吃重复内容。后缀/前缀重叠正好是这种"整屏重复"的形状。
+ * 重叠长度 ≤ min(两边条数)，最坏 O(n²) 而 n ≤ 20，可忽略。
+ * 连续重复（同一句话连发两条）单独挡在循环里 —— 那是"该保留一句"，不是重叠。
  * 另外顺手丢掉空白轮次：屏幕上读到的空节点没有任何信息量，留着只会挤掉上限。
  */
 internal fun appendTurnsDedup(existing: List<Turn>, incoming: List<Turn>): List<Turn> {
-    val out = ArrayList<Turn>(existing.size + incoming.size)
+    val clean = incoming.filter { it.text.isNotBlank() }
+    val out = ArrayList<Turn>(existing.size + clean.size)
     out.addAll(existing)
-    for (t in incoming) {
+    for (t in clean.drop(overlap(existing, clean))) {
         val text = t.text.trim()
-        if (text.isEmpty()) continue
         val last = out.lastOrNull()
         if (last != null && last.mine == t.mine && last.text.trim() == text) continue
         out.add(Turn(t.ts, t.mine, text))
     }
     return trimTurns(out)
+}
+
+/** `existing` 的后缀 == `incoming` 的前缀 的最长长度（0 = 没有重叠，整批都是新的） */
+private fun overlap(existing: List<Turn>, incoming: List<Turn>): Int {
+    val max = minOf(existing.size, incoming.size)
+    for (k in max downTo 1) {
+        var same = true
+        for (j in 0 until k) {
+            val a = existing[existing.size - k + j]
+            val b = incoming[j]
+            if (a.mine != b.mine || a.text.trim() != b.text.trim()) {
+                same = false
+                break
+            }
+        }
+        if (same) return k
+    }
+    return 0
 }
 
 /**

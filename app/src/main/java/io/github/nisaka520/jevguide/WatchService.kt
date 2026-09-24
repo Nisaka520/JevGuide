@@ -19,7 +19,9 @@ import java.io.File
  *
  * - 自动模式（默认关）：检测到对方最后一条消息变了 → 防抖 → 判读；同一条消息不会重复判读。
  * - 手动模式：无障碍按钮（系统快捷键）/ 通知栏磁贴 / 常驻通知上的按钮 → 立刻判读当前屏。
- * - 不做的事：不点击、不填字、不发送、不截屏、不读其它 App。
+ * - 不做的事：不点击、不填字、不发送、不读其它 App。
+ *   截屏只在「微信屏蔽了无障碍树 + 前台就是微信 + 用户自己选了视觉读屏」时才用 ——
+ *   入口在前台校验上（analyzeByVision 里那道 foregroundIsWeChat 闸门）。
  */
 class WatchService : AccessibilityService() {
 
@@ -247,6 +249,14 @@ class WatchService : AccessibilityService() {
         }
         if (!cfg.hasVisionKey()) {
             if (manual) Toast3.toast(this, "视觉读屏要配聊天模型密钥：设置 → 聊天模型", true)
+            return
+        }
+        // 截图会把**当前整个屏幕**交给模型端点，所以必须先确认前台就是微信。
+        // 这个函数（`VisionReader.foregroundIsWeChat`）原来只有定义、没有调用 ——
+        // 于是视觉模式下手动触发判读时，前台是银行/验证码/别人聊天也照截照发（代码审查发现）。
+        if (!VisionReader.foregroundIsWeChat(this)) {
+            AppLog.add("视觉读屏已跳过：前台不是微信")
+            if (manual) Toast3.toast(this, "现在的前台不是微信，不截屏", true)
             return
         }
         if (cfg.showAnalyzing) Toast3.toast(this, "正在截图识别…")

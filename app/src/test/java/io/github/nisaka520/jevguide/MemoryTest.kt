@@ -212,6 +212,21 @@ class MemoryTest {
         assertEquals(45L, out.last().ts)
     }
 
+    @Test
+    fun sameScreenTwiceIsNotAppendedAgain() {
+        // 抓屏每次都读整屏：同一屏再来一次时，新屏首条 ≠ 旧屏末条，
+        // 只比「末尾一条」会让整屏重复入账（[A,B,C] → [A,B,C,A,B,C]）
+        val screen = listOf(Turn(1L, false, "在吗"), Turn(2L, true, "在"), Turn(3L, false, "周末有空吗"))
+        val once = appendTurnsDedup(emptyList(), screen)
+        assertEquals(3, once.size)
+        assertEquals(once, appendTurnsDedup(once, screen))
+        // 正常的「又多了两条」：只追加新的那两条
+        val next = screen + listOf(Turn(4L, true, "有"), Turn(5L, false, "那周六？"))
+        val grown = appendTurnsDedup(once, next)
+        assertEquals(5, grown.size)
+        assertEquals("那周六？", grown.last().text)
+    }
+
     // --- 趋势与记忆块 -----------------------------------------------------
 
     /**

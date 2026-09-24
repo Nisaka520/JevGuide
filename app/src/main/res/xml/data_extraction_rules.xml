@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  换机迁移 / 云备份的排除规则。
+
+  为什么需要它：`android:allowBackup="false"` 在 targetSdk 31+ 上**只**停掉 Google Drive 云备份，
+  **不**停 Android 12 起的「设备到设备直传」（D2D）。不加这份规则的话，换新机时
+  - shared_prefs/jevguide.xml（两把 API 密钥、最近一次判读、最多 40 万字的抓屏文本）
+  - files/memory/（每个联系人的对话原文、摘要、事实）
+  会一起被搬过去 —— 用户以为自己"没开备份"，实际密钥和聊天记忆跟着走了。
+
+  这里把两者都排除：迁移是"换机"，跟"备份到云"一样不该带走密钥与聊天记录。
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="file" path="." />
+  </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="file" path="." />
+    </device-transfer>
+</data-extraction-rules>

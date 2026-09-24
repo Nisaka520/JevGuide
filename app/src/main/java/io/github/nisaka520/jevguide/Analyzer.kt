@@ -82,7 +82,7 @@ object Analyzer {
                 "记忆=${if (cfg.memoryEnabled) mem.turns.size else 0}条 消息长度=${target.text.length}"
         )
 
-        pool.execute {
+        pool.execute(guarded(ctx) {
             val t0 = System.currentTimeMillis()
             val body = Prompt.requestJson(state, cfg.model, cfg.lang, cfg.guideEnabled)
             val result = JevHttp.analyze(cfg.apiKey, body)
@@ -100,7 +100,7 @@ object Analyzer {
                         AppLog.add("响应里没有可用答案（${jevCost}ms）：" + result.body.take(300))
                         Toast3.toast(ctx, "Jev 返回了空结果，看设置里的日志", true)
                         running.set(false)
-                        return@execute
+                        return@guarded
                     }
                     val guide = v.guidePercent()
                     val trend = if (guide != null && lastScore != null) guide - lastScore else null
@@ -186,6 +186,26 @@ object Analyzer {
                     running.set(false)
                 }
             }
+        })
+    }
+
+    /**
+     * 判读线程的统一收口：**任何** Throwable 都要复位 `running`。
+     *
+     * 为什么必须有它：`running` 是「正在判读」的闸门，只有各分支正常走完才复位。
+     * 线程体中间那段（网络 → 解析 → 出结果）没有兜底 —— `Verdicts.parse` 里的 `Json.parse`
+     * 是递归下降，响应体又是外部输入，畸形/超深响应会抛 `StackOverflowError`，
+     * 而它是 Error 不是 Exception，内层的 catch 接不住。一旦漏掉，`busy()` 永远为真：
+     * 自动模式静默不动，手动入口一直弹「上一次还在判读」，只能杀进程才恢复。
+     */
+    private fun guarded(ctx: Context, body: () -> Unit): Runnable = Runnable {
+        try {
+            body()
+        } catch (t: Throwable) {
+            AppLog.add("判读线程异常（已复位，下次仍可判读）：${t.javaClass.simpleName} ${t.message ?: ""}")
+            Toast3.toast(ctx, "判读出错：" + t.javaClass.simpleName, true)
+        } finally {
+            running.set(false)
         }
     }
 
