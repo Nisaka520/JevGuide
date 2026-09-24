@@ -28,12 +28,12 @@
 object Aff {
 
     /**
-     * key = [Provider.id]。空串或空白 = 用官方入口。
+     * key = [Provider.id]。**没列出来的 = 不出渠道**：按钮回落 [Provider.keyUrl] 的官方入口，功能一模一样。
      *
-     * ## 各家的链接长什么样、去哪儿拿
+     * ## 现在出渠道的三家
      *
-     * 下面每一家的注释都写了「在哪一页拿」—— 没写的说明我**没有核实过**它有没有邀请活动，
-     * 别照着猜格式，去控制台自己翻一眼，有就填、没有就留空（留空完全不影响功能）。
+     * 智谱 / 硅基流动 / 阿里云百炼 —— 每家的注释都写了「在哪一页拿」。
+     * DeepSeek 官方没有邀请返利，列在这里只为了记一句「确认过，没有」。
      */
     private val links: Map<String, String> = mapOf(
         // ── 有邀请返利的，把你的链接填在这里 ──
@@ -56,29 +56,16 @@ object Aff {
         // 而 App 里写死的链接没法自动更新 —— 能拿云大使的长期链接就优先用长期的。
         "dashscope" to "https://dashi.aliyun.com/activity/ai?source=5176.29345612&userCode=i9q3mkfj",  // ⚠ 活动页链接，过期了要换
 
-        // 月之暗面 Kimi：查过开放平台（platform.kimi.com / platform.moonshot.cn）**没有邀请返利** → 留空。
-        //   ⚠ 别把「Kimi 会员订阅」的邀请链填这里：那是消费端会员（kimi.com/activities/…），
-        //   与这一格的用途（用户是来建 API 密钥的）根本不是一回事，填进去就是货不对板。
-        "kimi" to "",
-
-        // 火山方舟：⚠ 原来那个「限时邀请有礼」**已于 2026-04-29 0点下线**，"历史生成的邀请链接与邀请码
-        //   将停止生效"（官方公告：https://docs.volcengine.com/docs/82379/2165246?lang=zh）
-        //   —— 所以在控制台里翻来翻去找不到，是正常的，不是你没找对地方。
-        //
-        //   现在还在的两个邀请活动都是**套餐订阅**导向，奖励按"被邀请人订阅套餐"算：
-        //     · Agent Plan Small & Medium：2026-07-24 ~ 2026-12-31
-        //     · Coding Plan Lite & Pro：2026-05-19 ~ 2026-11-19
-        //   入口都是活动页上的「邀请好友」按钮（生成专属链接与邀请码）。
-        //   但它们跟这一格的用途（用户是来建 API 密钥的）对不上 —— 和 Kimi 会员那条同理，别填。
-        //
-        //   想要能对上号的，去控制台「费用中心 → 邀请有礼」看看有没有**账号级**邀请：
-        //   https://console.volcengine.com/finance/invite
-        "volcengine" to "",
-
-        // MiniMax：开放平台有 Referral Program，在那边生成邀请链接。
-        //   官方文档：https://platform.minimax.io/docs/token-plan/promotion
-        //   （国内站对应 platform.minimaxi.com，App 里这家用的就是国内站地址）
-        "minimax" to "",
+        // ── 不出渠道的三家（2026-09 定的，别再试图填）──
+        //   · Kimi：开放平台没有邀请返利。市面上流传的是「Kimi 会员订阅」邀请（消费端会员），
+        //     跟这一格的用途（用户是来建 API 密钥的）不是一回事，填进去就是货不对板。
+        //   · 火山方舟：原有的「限时邀请有礼」**已于 2026-04-29 0点下线**（官方公告：
+        //     https://docs.volcengine.com/docs/82379/2165246?lang=zh ），历史邀请链接与邀请码全部失效 ——
+        //     所以控制台里翻不到是正常的。现存的两个邀请活动都是**套餐订阅**导向
+        //     （Agent Plan 2026-07-24~12-31、Coding Plan 2026-05-19~11-19），同样对不上这一格的用途。
+        //   · MiniMax：Referral Program 在 platform.minimax.io，而 App 这家用的是国内站 minimaxi.com，
+        //     不确定能否互通，先不出。
+        //   这三家的按钮照常能用：没配链接就回落 [Provider.keyUrl] 的官方入口（见下面 keyUrl 的 `?: p.keyUrl`）。
 
         // ── 官方没有邀请返利，留空就行 ──
         "deepseek" to ""
