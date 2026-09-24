@@ -56,7 +56,9 @@ object Aff {
         // 而 App 里写死的链接没法自动更新 —— 能拿云大使的长期链接就优先用长期的。
         "dashscope" to "https://dashi.aliyun.com/activity/ai?source=5176.29345612&userCode=i9q3mkfj",  // ⚠ 活动页链接，过期了要换
 
-        // 月之暗面 Kimi：**未核实**有没有稳定的邀请链接格式，有就填。
+        // 月之暗面 Kimi：查过开放平台（platform.kimi.com / platform.moonshot.cn）**没有邀请返利** → 留空。
+        //   ⚠ 别把「Kimi 会员订阅」的邀请链填这里：那是消费端会员（kimi.com/activities/…），
+        //   与这一格的用途（用户是来建 API 密钥的）根本不是一回事，填进去就是货不对板。
         "kimi" to "",
 
         // 火山方舟：控制台里有个「限时邀请有礼」活动页，链接从那里拿。
