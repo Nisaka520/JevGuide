@@ -27,17 +27,37 @@
  */
 object Aff {
 
-    /** key = [Provider.id]。空串或空白 = 用官方入口 */
+    /**
+     * key = [Provider.id]。空串或空白 = 用官方入口。
+     *
+     * ## 各家的链接长什么样、去哪儿拿
+     *
+     * 下面每一家的注释都写了「在哪一页拿」—— 没写的说明我**没有核实过**它有没有邀请活动，
+     * 别照着猜格式，去控制台自己翻一眼，有就填、没有就留空（留空完全不影响功能）。
+     */
     private val links: Map<String, String> = mapOf(
         // ── 有邀请返利的，把你的链接填在这里 ──
-        // 智谱的「邀请好友」入口。icode 里的 %2F %2B 是 URL 编码过的 / 和 +，
-        // 必须原样保留，别手动解码 —— 解了以后链接就失效了。
+
+        // 智谱：控制台 → 右上角头像 →「邀请好友」，页面上的链接直接整条复制。
+        // icode 里的 %2F %2B 是 URL 编码过的 / 和 +，必须原样保留，别手动解码 —— 解了链接就失效。
         "zhipu" to "https://www.bigmodel.cn/invite?icode=nGBxEgS2nDIiO2pfff%2F%2BN33uFJ1nZ0jLLgipQkYjpcA%3D",
-        "siliconflow" to "",  // 例：https://cloud.siliconflow.cn/i/XXXX
-        "dashscope" to "",    // 阿里云百炼的邀请链接
-        "kimi" to "",         // 月之暗面的邀请链接
-        "volcengine" to "",   // 火山方舟的邀请链接
-        "minimax" to "",      // MiniMax 的邀请链接
+
+        // 硅基流动：控制台左侧「邀请好友」（或账户页里的邀请卡片），形如
+        // https://cloud.siliconflow.cn/i/XXXXXX —— 双方都有额度奖励，以官网当期规则为准。
+        "siliconflow" to "",
+
+        // 阿里云百炼：走的是阿里云账号级的「推荐返利 / 云大使」，链接是一条阿里云的推广短链
+        // （不是百炼自己的 icode），在阿里云「云大使」页面生成后整条贴进来。
+        "dashscope" to "",
+
+        // 月之暗面 Kimi：**未核实**有没有稳定的邀请链接格式，有就填。
+        "kimi" to "",
+
+        // 火山方舟：控制台里有个「限时邀请有礼」活动页，链接从那里拿。
+        "volcengine" to "",
+
+        // MiniMax：**未核实**。
+        "minimax" to "",
 
         // ── 官方没有邀请返利，留空就行 ──
         "deepseek" to ""

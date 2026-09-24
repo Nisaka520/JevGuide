@@ -1,4 +1,4 @@
-package io.github.nisaka520.jevguide
+﻿package io.github.nisaka520.jevguide
 
 /**
  * 首启须知与隐私政策的**唯一出处**。
@@ -16,6 +16,9 @@ object Privacy {
 
     /** 隐私政策地址（GitHub Pages，静态 HTML） */
     const val URL = "https://nisaka520.github.io/JevGuide/privacy.html"
+
+    /** 开源仓库（MIT）——「关于」里的入口、报 issue、看更新日志都从这里走 */
+    const val REPO = "https://github.com/Nisaka520/JevGuide"
 
     /**
      * 首启须知正文。

@@ -540,6 +540,31 @@ class SettingsActivity : AppCompatActivity() {
                 "免责：只读屏幕上已经显示的内容，不代替你说话、不自动发送；聊天记录的去向取决于你配的端点，" +
                 "请自行确认对方的隐私政策。请勿用于骚扰、跟踪或任何违法用途。"
         )
+        // 开源仓库：想看出处、想自己改、想出问题，都从这里走（MIT 许可，仓库里有完整源码、更新日志与构建方法）
+        button("开源仓库与文档（GitHub · MIT）") {
+            try {
+                startActivity(
+                    android.content.Intent(
+                        android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse(Privacy.REPO)
+                    )
+                )
+            } catch (e: Exception) {
+                toast("打不开浏览器，地址是：" + Privacy.REPO)
+            }
+        }
+        button("报告问题 / 提需求（Issues）") {
+            try {
+                startActivity(
+                    android.content.Intent(
+                        android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse(Privacy.REPO + "/issues")
+                    )
+                )
+            } catch (e: Exception) {
+                toast("打不开浏览器，地址是：" + Privacy.REPO + "/issues")
+            }
+        }
         // 完整说明（数据种类、去向、保留与删除）—— 上架时商店要的就是这个 URL
         button("隐私政策（完整说明：数据种类、去向、保留与删除）") {
             try {
