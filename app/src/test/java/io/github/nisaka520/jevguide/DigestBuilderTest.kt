@@ -93,6 +93,35 @@ class DigestBuilderTest {
     }
 
     @Test
+    fun groupTitlesWithHalfMemberFormAreDetected() {
+        // 微信群里只显示部分成员时标题是「群名（3/9）」—— 曾经漏判成单聊，会话类型就错了
+        for (title in listOf("项目组（3/9）", "项目组 (3/9)", "项目组（12）", "项目组 (8)")) {
+            val d = DigestBuilder.build(
+                listOf(line(title, 40, 60, 400, 130), line("明天开会", 40, 420, 400, 500)),
+                W, H
+            )
+            assertTrue("「$title」应判为群聊", d.isGroup)
+        }
+        for (title in listOf("张伟", "妈妈", "文件传输助手")) {
+            val d = DigestBuilder.build(
+                listOf(line(title, 40, 60, 400, 130), line("明天开会", 40, 420, 400, 500)),
+                W, H
+            )
+            assertFalse("「$title」不应判为群聊", d.isGroup)
+        }
+    }
+
+    @Test
+    fun groupSuffixRegexIsTheSameAcrossMemoryKeysAndContacts() {
+        // 三处（isGroup / MemKeys / Contacts.normalize）共用 Digest.kt 的 GROUP_SUFFIX，
+        // 这里锁死口径：能判群的标题，记忆键和联系人匹配也必须剥掉同一个后缀
+        for (title in listOf("项目组（3/9）", "项目组 (3/9)", "项目组（12）", "项目组 (8)")) {
+            assertEquals("项目组", MemKeys.of(title))
+            assertEquals("项目组", Contacts.normalize(title))
+        }
+    }
+
+    @Test
     fun stateUsesTheSameKeysAsThePlugin() {
         val d = DigestBuilder.build(screen, W, H)
         val state = Json.obj(Json.parse(d.state(同事, maxCtx = 3)))

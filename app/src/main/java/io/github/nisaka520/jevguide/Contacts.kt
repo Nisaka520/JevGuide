@@ -42,7 +42,8 @@ object Contacts {
      */
     fun normalize(raw: String): String {
         var s = raw.trim().lowercase()
-        s = s.replace(Regex("""[(（]\s*\d+\s*[/／]?\s*\d*\s*[)）]\s*$"""), "")
+        // 群名后缀的正则收口在 Digest.kt 的 GROUP_SUFFIX（三处共用一个口径，别在这里另写一份）
+        s = s.replace(GROUP_SUFFIX, "")
         s = s.replace(Regex("""\s+"""), "")
         return s
     }

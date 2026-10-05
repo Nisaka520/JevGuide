@@ -84,7 +84,8 @@ object MemoryUpdater {
             if (l.isEmpty()) continue
             val m = summaryHead.find(l)
             if (m != null) {
-                summary = m.groupValues[2].trim()
+                // 摘要也剥掉引号 —— 模型爱写「摘要：「……」」，跟事实行同一个待遇
+                summary = m.groupValues[2].trim().trim('「', '」', '"')
                 inFacts = false
                 continue
             }

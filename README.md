@@ -199,7 +199,7 @@ HTTP 400  {"detail": "Too many score levels. Must have at most 10 levels."}
 # local.properties 写 sdk.dir=...（或设 ANDROID_HOME）
 ./gradlew.bat assembleRelease      # 对外分发的那个（产物 app/build/outputs/apk/release/app-release.apk）
 ./gradlew.bat assembleDebug        # 调试包：包名带 .debug、可 adb 调试（产物 .../apk/debug/app-debug.apk）
-./gradlew.bat testDebugUnitTest    # 纯逻辑单测（140 个，不依赖设备）
+./gradlew.bat testDebugUnitTest    # 纯逻辑单测（160 个，不依赖设备）
 ```
 
 ### 装到手机

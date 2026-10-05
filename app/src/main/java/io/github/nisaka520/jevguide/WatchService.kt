@@ -27,7 +27,15 @@ class WatchService : AccessibilityService() {
 
     private val handler = Handler(Looper.getMainLooper())
     private var pending: Runnable? = null
-    private var lastPeerText: String = ""
+
+    /**
+     * 自动判读的去重键：「联系人标题 + 对方最后一条消息」。
+     *
+     * ⚠ 必须带上标题，不能只比消息文字 —— 否则从聊天 A 切到聊天 B，
+     * 两边最后一条对方消息恰好都是「嗯」时，B 的这条会被误判成「没有新消息」而漏判
+     * （2026-10 发现，原来只有一个 lastPeerText 字符串）。
+     */
+    private var lastPeerKey: String = ""
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -175,6 +183,19 @@ class WatchService : AccessibilityService() {
         handler.postDelayed(r, cfg.autoDebounceMs.toLong())
     }
 
+    /**
+     * 记下这次自动判读的「联系人 + 对方最后一条消息」，返回 false 表示跟上次完全一样，
+     * 不用重判。自动模式的两个读屏入口（无障碍树 / 视觉）都必须过这道闸 ——
+     * 尤其视觉那条：微信不给树的时候每个界面事件都会走到这里，不去重的话
+     * 屏幕每变一次（滚动、输入框光标、气泡动画）就白烧一次带图调用。
+     */
+    private fun markAutoSeen(title: String, text: String?): Boolean {
+        val key = title + "\u0000" + (text ?: "")
+        if (key == lastPeerKey) return false
+        lastPeerKey = key
+        return true
+    }
+
     private fun autoRun() {
         pending = null
         val cfg = Config(this)
@@ -188,8 +209,7 @@ class WatchService : AccessibilityService() {
             }
             return
         }
-        if (t == lastPeerText) return                       // 没有新消息，别重复判读
-        lastPeerText = t
+        if (!markAutoSeen(d!!.title, t)) return             // 没有新消息，别重复判读
         AppLog.add("自动模式：检测到新消息")
         Analyzer.run(this, d, manual = false)
     }
@@ -266,7 +286,12 @@ class WatchService : AccessibilityService() {
                 Toast3.toast(this, err ?: "视觉读屏失败", true)
             } else {
                 AppLog.add("视觉读屏：标题=「${d.title}」读到 ${d.msgs.size} 条（对方 ${d.msgs.count { !it.mine }} 条）")
-                Analyzer.run(this, d, manual)
+                // 自动模式下同一屏不重判（手动点的不拦 —— 用户点了就得给结果）
+                if (manual || markAutoSeen(d.title, d.latestPeerMessage()?.text)) {
+                    Analyzer.run(this, d, manual)
+                } else {
+                    AppLog.add("自动模式：视觉读到的还是同一屏，跳过")
+                }
             }
         }
     }

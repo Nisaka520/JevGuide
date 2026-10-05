@@ -122,8 +122,43 @@ object Analyzer {
                         }
                     }
 
+                    /**
+                     * 两次模型调用是**串行**的：文案提示词要用 Jev 的判读结论（意图/情绪/姿态/风险），
+                     * 有真实的数据依赖，并行就得改产品口径。但用户最想要的**攻略度**在 Jev 一回来就有了，
+                     * 没必要等文案一起 —— 所以这里把「上浮条」提前到文案之前：
+                     * 攻略度先挂上去（通常省 5~15s），文案到了再补全 lastPayload，
+                     * 中间点开结果页会看到"文案还在生成"的过渡态（ResultPayload.draftsPending）。
+                     */
+                    fun payloadOf(ds: List<Draft>, pending: Boolean) = ResultPayload(
+                        title = digest.title.ifEmpty { cfg.lastContactName },
+                        relation = contact.relation,
+                        guidePercent = guide,
+                        trend = trend,
+                        lines = v.lines(cfg.emotionTop),
+                        drafts = ds,
+                        costMs = System.currentTimeMillis() - t0,
+                        state = state,
+                        memoryBlock = memBlock,
+                        chatReady = cfg.hasChatKey(),
+                        draftsPending = pending
+                    )
+
+                    // ── 攻略度优先上**常驻浮层**：一眼就能看到，不用弹窗挡着聊天 ──
+                    val draftsWanted = cfg.draftsEnabled && cfg.hasChatKey()
+                    ScoreOverlay.lastPayload = payloadOf(emptyList(), pending = draftsWanted)
+                    // who 在上面已经算好了（记忆的 key 就靠它），这里只回写供下次兜底
+                    if (who.isNotEmpty()) cfg.lastContactName = who
+                    val overlayText = ScoreOverlay.format(who, guide, trend)
+                    cfg.lastOverlayText = overlayText
+                    cfg.lastOverlayPercent = guide ?: -1
+                    val svc = WatchService.instance
+                    if (svc != null) {
+                        ScoreOverlay.show(svc, cfg, overlayText, guide)
+                    }
+                    AppLog.add("攻略度已上屏（Jev ${jevCost}ms）${if (draftsWanted) "，文案生成中" else "，未开文案"}")
+
                     // ── 候选文案（可选，失败只降级不报错）──
-                    val drafts = if (cfg.draftsEnabled && cfg.hasChatKey()) {
+                    val drafts = if (draftsWanted) {
                         generateDrafts(cfg, memBlock, promptLines, state)
                     } else {
                         emptyList()
@@ -137,31 +172,9 @@ object Analyzer {
                             lines.joinToString(" / ").replace("\n", " ")
                     )
 
-                    // ── 出结果 ──
-                    val payload = ResultPayload(
-                        title = digest.title.ifEmpty { cfg.lastContactName },
-                        relation = contact.relation,
-                        guidePercent = guide,
-                        trend = trend,
-                        lines = v.lines(cfg.emotionTop),
-                        drafts = drafts,
-                        costMs = cost,
-                        state = state,
-                        memoryBlock = memBlock,
-                        chatReady = cfg.hasChatKey()
-                    )
-
-                    // 攻略度优先上**常驻浮层**：一眼就能看到，不用弹窗挡着聊天
+                    // 文案补全：换掉 lastPayload，此刻点浮条才能看到全部文案
+                    val payload = payloadOf(drafts, pending = false)
                     ScoreOverlay.lastPayload = payload
-                    // who 在上面已经算好了（记忆的 key 就靠它），这里只回写供下次兜底
-                    if (who.isNotEmpty()) cfg.lastContactName = who
-                    val overlayText = ScoreOverlay.format(who, guide, trend)
-                    cfg.lastOverlayText = overlayText
-                    cfg.lastOverlayPercent = guide ?: -1
-                    val svc = WatchService.instance
-                    if (svc != null) {
-                        ScoreOverlay.show(svc, cfg, overlayText, guide)
-                    }
 
                     // 结果页只在"没开浮层"或"明确要求自动弹"时出现；否则点浮层才打开
                     val wantPage = cfg.resultMode == "page" && (!cfg.overlayEnabled || cfg.overlayAutoResult)

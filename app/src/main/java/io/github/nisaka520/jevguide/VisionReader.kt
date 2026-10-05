@@ -62,10 +62,17 @@ object VisionReader {
     }
 
     /** 视觉读屏用哪个端点：单独填了就用单独的，否则跟文案共用一套 */
-    fun endpointOf(cfg: Config): Triple<String, String, String> {
-        val base = cfg.visionBaseUrl.ifEmpty { cfg.chatBaseUrl }
-        val key = cfg.visionApiKey.ifEmpty { cfg.chatApiKey }
-        val model = cfg.visionModel.ifEmpty { cfg.chatModel }
+    fun endpointOf(cfg: Config): Triple<String, String, String> =
+        endpointOf(cfg.visionBaseUrl, cfg.visionApiKey, cfg.visionModel, cfg.chatBaseUrl, cfg.chatApiKey, cfg.chatModel)
+
+    /** 纯函数版（方便单测）：视觉三项里哪一项空着，就退回聊天模型那一套的同名项 */
+    fun endpointOf(
+        visionBase: String, visionKey: String, visionModel: String,
+        chatBase: String, chatKey: String, chatModel: String
+    ): Triple<String, String, String> {
+        val base = visionBase.ifEmpty { chatBase }
+        val key = visionKey.ifEmpty { chatKey }
+        val model = visionModel.ifEmpty { chatModel }
         return Triple(base, key, model)
     }
 

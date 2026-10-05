@@ -3,13 +3,20 @@ package io.github.nisaka520.jevguide
 /** 从屏幕上读到的一条消息 */
 data class ScreenMsg(val mine: Boolean, val text: String, val quoted: String? = null)
 
+/**
+ * 微信群聊标题尾部的人数后缀（"项目组 (8)" / "项目组（12）" / "项目组（3/9）"）。
+ * 半角/全角括号、有无「在线人数/总人数」斜杠形式都出现 —— 群名归一、联系人匹配、
+ * 会话类型判定三处共用这一个正则，口径必须一致，改这里等于改三处。
+ */
+val GROUP_SUFFIX = Regex("""[(（]\s*\d+\s*[/／]?\s*\d*\s*[)）]\s*$""")
+
 /** 一次抓屏的结果：会话标题 + 可见消息（按屏幕顺序，旧 → 新） */
 data class Digest(val title: String, val msgs: List<ScreenMsg>) {
 
     /** 单聊时标题就是对方昵称；群聊标题带人数后缀 */
     val peer: String get() = title
 
-    val isGroup: Boolean get() = Regex("""[(（]\s*\d+\s*[)）]\s*$""").containsMatchIn(title.trim())
+    val isGroup: Boolean get() = GROUP_SUFFIX.containsMatchIn(title.trim())
 
     /** 最后一条对方发来的消息（要判读的就是它） */
     fun latestPeerMessage(): ScreenMsg? = msgs.lastOrNull { !it.mine }

@@ -103,10 +103,20 @@ class VisionReaderTest {
 
     @Test
     fun endpointFallsBackToChatConfig() {
-        // endpointOf 依赖 Config(Context)，纯 JVM 单测里拿不到 —— 这里只钉住"三者都为空时取到默认"的语义
-        val t = Triple("", "", "")
-        assertEquals("", t.first)
-        assertEquals("", t.second)
-        assertEquals("", t.third)
+        // 逐项回退：视觉三项各空一项就退到聊天模型的同名项，填了的优先
+        assertEquals(
+            Triple("vb", "vk", "vm"),
+            VisionReader.endpointOf("vb", "vk", "vm", "cb", "ck", "cm")
+        )
+        assertEquals(
+            Triple("cb", "ck", "cm"),
+            VisionReader.endpointOf("", "", "", "cb", "ck", "cm")
+        )
+        assertEquals(
+            Triple("vb", "ck", "vm"),
+            VisionReader.endpointOf("vb", "", "vm", "cb", "ck", "cm")
+        )
+        // 全空就全空，别瞎兜出一个默认端点
+        assertEquals(Triple("", "", ""), VisionReader.endpointOf("", "", "", "", "", ""))
     }
 }

@@ -78,8 +78,8 @@ data class ContactMemory(
  */
 object MemKeys {
 
-    /** 群聊标题尾部的人数后缀，半角/全角括号都出现（"项目组 (8)" / "项目组（12）" / "项目组（3/9）"） */
-    private val GROUP_SUFFIX = Regex("""[(（]\s*\d+\s*[/／]?\s*\d*\s*[)）]\s*$""")
+    // 群名后缀的正则收口在 Digest.kt 的 GROUP_SUFFIX（三处共用一个口径，别在这里另写一份）
+    private val GROUP_SUFFIX get() = io.github.nisaka520.jevguide.GROUP_SUFFIX
 
     private const val HEX = "0123456789abcdef"
 

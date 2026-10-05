@@ -38,7 +38,12 @@ data class ResultPayload(
     /** 重新生成要用：拼好的 state 与记忆块 */
     val state: String,
     val memoryBlock: String,
-    val chatReady: Boolean
+    val chatReady: Boolean,
+    /**
+     * true = 攻略度已经判出来、文案还在路上（浮条先上屏的结果）。
+     * 这时候打开结果页只能看到判读，别把"没生成"误报成"生成失败"。
+     */
+    val draftsPending: Boolean = false
 )
 
 /**
@@ -65,6 +70,7 @@ class ResultActivity : AppCompatActivity() {
         private const val EX_STATE = "state"
         private const val EX_MEM = "mem"
         private const val EX_CHAT_READY = "chat_ready"
+        private const val EX_DRAFTS_PENDING = "drafts_pending"
 
         /**
          * 拉起结果页。返回 false 表示没能拉起（后台启动被系统拦、或没有 Activity 环境），
@@ -84,6 +90,7 @@ class ResultActivity : AppCompatActivity() {
                 putExtra(EX_STATE, p.state)
                 putExtra(EX_MEM, p.memoryBlock)
                 putExtra(EX_CHAT_READY, p.chatReady)
+                putExtra(EX_DRAFTS_PENDING, p.draftsPending)
             }
             ctx.startActivity(i)
             true
@@ -98,6 +105,9 @@ class ResultActivity : AppCompatActivity() {
     private var state = ""
     private var memBlock = ""
     private var n = 3
+
+    /** 攻略度已出、文案还在生成的过渡态（浮条先上屏之后点开结果页会遇到） */
+    private var draftsPending = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -114,6 +124,7 @@ class ResultActivity : AppCompatActivity() {
         val lines = intent.getStringArrayListExtra(EX_LINES).orEmpty()
         val cost = intent.getLongExtra(EX_COST, 0L)
         val chatReady = intent.getBooleanExtra(EX_CHAT_READY, false)
+        draftsPending = intent.getBooleanExtra(EX_DRAFTS_PENDING, false)
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -216,6 +227,7 @@ class ResultActivity : AppCompatActivity() {
 
         statusLine.text = buildString {
             append("Jev + 文案耗时 ").append(cost).append("ms")
+            if (draftsPending) append(" · 文案生成中，稍后重开看全文")
             if (!chatReady) append(" · 未配聊天模型，只有判读")
         }
     }
@@ -248,7 +260,12 @@ class ResultActivity : AppCompatActivity() {
     private fun renderDrafts(drafts: List<Draft>) {
         draftsBox.removeAllViews()
         if (drafts.isEmpty()) {
-            draftsBox.addView(text("（这次没生成文案）", 13.5f, cOnSurfaceVariant, bold = false))
+            // 攻略度已上屏、文案还在生成的过渡态，跟"真没生成"要说清楚，
+            // 不然用户会以为是生成失败（浮条先上屏之后这个窗口是能被点开的）
+            draftsBox.addView(text(
+                if (draftsPending) "（文案还在生成，几秒后重开就有了）" else "（这次没生成文案）",
+                13.5f, cOnSurfaceVariant, bold = false
+            ))
             return
         }
         drafts.forEachIndexed { i, d ->
