@@ -2,7 +2,6 @@
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Context
-import android.content.res.Configuration
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
@@ -125,6 +124,13 @@ object ScoreOverlay {
                 existing.text = text
                 existing.setTextColor(colorOf(percent))
                 ring?.background = ringDrawable(service, percent)
+                // 轻微「弹一下」：分数变了要能被余光捕捉到，又不能闪得烦人
+                root?.let { b ->
+                    b.animate().cancel()
+                    b.scaleX = 0.96f
+                    b.scaleY = 0.96f
+                    b.animate().scaleX(1f).scaleY(1f).setDuration(140).start()
+                }
                 return
             }
 
@@ -201,6 +207,9 @@ object ScoreOverlay {
 
             box.setOnTouchListener(DragTap(service, cfg, w, p))
             w.addView(box, p)
+            // 首次挂上来的淡入：猛地冒出来一颗胶囊很突兀，淡入 200ms 更像"它一直在那儿"
+            box.alpha = 0f
+            box.animate().alpha(1f).setDuration(200).start()
             root = box
             label = tv
             ring = dot
@@ -242,11 +251,6 @@ object ScoreOverlay {
         val tv = TypedValue()
         return if (ctx.theme.resolveAttribute(attrId, tv, true) && tv.data != 0) tv.data else fallback
     }
-
-    @Suppress("unused")
-    private fun isNight(ctx: Context): Boolean =
-        (ctx.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
-            Configuration.UI_MODE_NIGHT_YES
 
     private class DragTap(
         private val service: AccessibilityService,

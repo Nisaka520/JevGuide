@@ -46,6 +46,15 @@
         <item name="colorOutline">@color/md_outline</item>
         <!-- 对话框圆角：MD3 里对话框是 28dp，这里小一号（20dp）是因为它要盖在聊天界面上，别太占地方 -->
         <item name="shapeAppearanceOverlay">@style/Shape.JevGuide.Dialog</item>
+        <!-- 进出用淡入淡出：它是盖在聊天上的一层，滑动转场会让底下的聊天"动"起来，淡入淡出更稳 -->
+        <item name="android:windowAnimationStyle">@style/Anim.JevGuide.Dialog</item>
+    </style>
+
+    <style name="Anim.JevGuide.Dialog" parent="">
+        <item name="android:activityOpenEnterAnimation">@anim/fade_in</item>
+        <item name="android:activityOpenExitAnimation">@anim/fade_out</item>
+        <item name="android:activityCloseEnterAnimation">@anim/fade_in</item>
+        <item name="android:activityCloseExitAnimation">@anim/fade_out</item>
     </style>
 
     <style name="Shape.JevGuide.Dialog" parent="">

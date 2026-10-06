@@ -181,7 +181,7 @@ object Analyzer {
                     when {
                         wantPage -> {
                             if (!ResultActivity.show(ctx, payload)) {
-                                notifyFallback(ctx, digest.title, lines, drafts)
+                                notifyFallback(ctx, payload)
                             }
                         }
                         cfg.resultMode != "page" -> Toast3.showLines(ctx, lines, cfg.toastGapMs)
@@ -247,8 +247,13 @@ object Analyzer {
     private fun emptyMemory(key: String, name: String) =
         ContactMemory(key, name, "", "", emptyList(), emptyList(), emptyList(), System.currentTimeMillis(), 0)
 
-    /** 结果页拉不起来时（后台启动被拦）退化成一条可展开的通知，至少让结果看得见 */
-    private fun notifyFallback(ctx: Context, title: String, lines: List<String>, drafts: List<Draft>) {
+    /**
+     * 结果页拉不起来时（后台启动被拦）退化成一条可展开的通知，至少让结果看得见。
+     *
+     * contentIntent 直接带**完整结果**打开结果页：从通知栏点开不算「后台启动」，
+     * 系统不会拦 —— 原来点通知进的是设置页，结果根本不在那儿，用户白点一次。
+     */
+    private fun notifyFallback(ctx: Context, p: ResultPayload) {
         try {
             val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -257,20 +262,20 @@ object Analyzer {
                 )
             }
             val body = buildString {
-                append(lines.joinToString("\n"))
-                if (drafts.isNotEmpty()) {
+                append(p.lines.joinToString("\n"))
+                if (p.drafts.isNotEmpty()) {
                     append("\n\n候选文案：")
-                    drafts.forEach { append("\n【").append(it.title).append("】").append(it.text) }
+                    p.drafts.forEach { append("\n【").append(it.title).append("】").append(it.text) }
                 }
             }
             val open = PendingIntent.getActivity(
-                ctx, 0, android.content.Intent(ctx, SettingsActivity::class.java),
+                ctx, 0, ResultActivity.intent(ctx, p),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
             val n = android.app.Notification.Builder(ctx, "jevguide_result")
                 .setSmallIcon(android.R.drawable.ic_menu_info_details)
-                .setContentTitle("弦外之音 · $title")
-                .setContentText(lines.firstOrNull().orEmpty())
+                .setContentTitle("弦外之音 · ${p.title}")
+                .setContentText(p.lines.firstOrNull().orEmpty())
                 .setStyle(android.app.Notification.BigTextStyle().bigText(body))
                 .setContentIntent(open)
                 .setAutoCancel(true)

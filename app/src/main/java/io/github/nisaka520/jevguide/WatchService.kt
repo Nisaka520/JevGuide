@@ -310,12 +310,28 @@ class WatchService : AccessibilityService() {
             val f = File(dir, "jev-dump-" + System.currentTimeMillis() + ".txt")
             f.writeText(text)
             cfg.lastDumpPath = f.absolutePath
+            pruneOldDumps(dir)
             val n = text.count { it == '\n' }
             AppLog.add("抓屏诊断已保存：${f.absolutePath}（$n 行）")
             Toast3.toast(this, "诊断已保存（$n 行）·  回「弦外之音」设置页点『分享最近诊断』", true)
         } catch (e: Exception) {
             AppLog.add("抓屏诊断失败：${e.message}")
             Toast3.toast(this, "诊断失败：" + e.message, true)
+        }
+    }
+
+    /**
+     * 诊断文件只留最近 5 份：每次诊断能落一份几百 KB 的树文本，
+     * 排查几次就把外部私有目录堆满，而旧的根本没人再看。
+     */
+    private fun pruneOldDumps(dir: File) {
+        try {
+            dir.listFiles { f -> f.name.startsWith("jev-dump-") && f.name.endsWith(".txt") }
+                ?.sortedByDescending { it.name }
+                ?.drop(5)
+                ?.forEach { it.delete() }
+        } catch (t: Throwable) {
+            AppLog.add("诊断文件清理失败：${t.javaClass.simpleName}")
         }
     }
 

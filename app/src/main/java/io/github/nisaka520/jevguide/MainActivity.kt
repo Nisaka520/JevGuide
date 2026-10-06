@@ -115,20 +115,40 @@ class MainActivity : AppCompatActivity() {
     }
 
     private lateinit var statusText: TextView
+    private lateinit var statusDot: View
+    private lateinit var statusDotBg: GradientDrawable
 
     /** 首页顶部状态：一眼看清「能不能用」，不用点进去猜 */
     private fun statusCard() {
+        statusDotBg = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(0xFF9AA8BB.toInt())
+        }
+        statusDot = View(this).apply {
+            background = statusDotBg
+            layoutParams = LinearLayout.LayoutParams(dp(10), dp(10)).apply {
+                topMargin = dp(4)
+                rightMargin = dp(12)
+            }
+        }
         statusText = TextView(this).apply {
             setTextColor(cOnSurface)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
             setLineSpacing(dp(5).toFloat(), 1f)
+        }
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
             setPadding(dp(16), dp(14), dp(16), dp(14))
             background = GradientDrawable().apply {
                 setColor(cContainerHigh)
                 cornerRadius = dp(20).toFloat()
             }
+            addView(statusDot)
+            addView(statusText, LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f
+            ))
         }
-        page.addView(statusText, LinearLayout.LayoutParams(
+        page.addView(row, LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
         ).apply { topMargin = dp(12) })
         refreshStatus()
@@ -156,6 +176,15 @@ class MainActivity : AppCompatActivity() {
             "聊天模型：" + if (cfg.hasChatKey()) cfg.chatModel else "没配（只有判读，没有候选文案）",
             "常驻浮条：" + if (cfg.overlayEnabled) "开" else "关"
         ).joinToString("\n")
+        // 左边的就绪色点：不读文字也能扫出状态（和下面入口卡片的色点是同一套语言）
+        // 绿＝服务在跑且两把密钥都齐；黄＝服务在跑但配置还缺；灰＝服务没起来
+        statusDotBg.setColor(
+            when {
+                WatchService.instance != null && cfg.hasKey() && cfg.hasChatKey() -> 0xFF7EE0A8.toInt()
+                WatchService.instance != null -> 0xFFFFD54F.toInt()
+                else -> 0xFF9AA8BB.toInt()
+            }
+        )
     }
 
     private fun stopButton() {

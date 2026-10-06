@@ -49,6 +49,14 @@ class SettingsActivity : AppCompatActivity() {
     /** 每个分区标题在 page 里的下标 → 它属于哪一屏。首页进来时按这个把别屏的分区删掉 */
     private val sectionRuns = ArrayList<Pair<Int, String>>()
 
+    /**
+     * 记忆份数的缓存：读它要扫整个 memory 目录（每联系人一个文件），
+     * 原来**每次 onResume 都在主线程上同步扫** —— 记忆多了设置页一打开就卡一下。
+     * 现在主线程只读缓存，真扫在后台做，扫完回来刷新（-1 = 还没扫出来，显示「…」）。
+     */
+    @Volatile
+    private var memoryCount = -1
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         cfg = Config(this)
@@ -90,6 +98,22 @@ class SettingsActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         refreshDynamic()
+        refreshMemoryCountAsync()
+    }
+
+    /** 后台扫一遍 memory 目录拿份数，回来只刷状态卡（不碰其它控件，改了哪个刷哪个） */
+    private fun refreshMemoryCountAsync() {
+        if (!cfg.memoryEnabled) return
+        Thread {
+            val n = try { Memories.listAll(this).size } catch (t: Throwable) { -1 }
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                if (n != memoryCount) {
+                    memoryCount = n
+                    refreshDynamic()
+                }
+            }
+        }.start()
     }
 
     /**
@@ -651,7 +675,9 @@ class SettingsActivity : AppCompatActivity() {
                 else "未配置（只能判读，不出文案）"
             ).append('\n')
             append("攻略度：").append(if (cfg.guideEnabled) "开" else "关")
-            append(" · 记忆：").append(if (cfg.memoryEnabled) "开（${Memories.listAll(this@SettingsActivity).size} 份）" else "关")
+            append(" · 记忆：").append(
+                if (cfg.memoryEnabled) "开（" + (if (memoryCount >= 0) "$memoryCount 份" else "…") + "）" else "关"
+            )
             append('\n')
             append("读取方式：").append(
                 when (cfg.readMode) {

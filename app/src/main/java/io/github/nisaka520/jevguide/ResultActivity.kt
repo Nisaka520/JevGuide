@@ -73,11 +73,12 @@ class ResultActivity : AppCompatActivity() {
         private const val EX_DRAFTS_PENDING = "drafts_pending"
 
         /**
-         * 拉起结果页。返回 false 表示没能拉起（后台启动被系统拦、或没有 Activity 环境），
-         * 调用方据此降级成通知/Toast —— 工具最忌讳"点了没反应"。
+         * 拉起结果页用的 Intent。单独拆出来：兜底通知的 contentIntent 也要这组 extras，
+         * 而从通知栏点开是不受「后台启动拦截」限制的 —— 结果页拉不起来时，
+         * 通知内容照旧，点通知就能看到完整结果（原来点开的是设置页，结果不在那儿）。
          */
-        fun show(ctx: Context, p: ResultPayload): Boolean = try {
-            val i = Intent(ctx, ResultActivity::class.java).apply {
+        fun intent(ctx: Context, p: ResultPayload): Intent =
+            Intent(ctx, ResultActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 putExtra(EX_TITLE, p.title)
                 putExtra(EX_RELATION, p.relation)
@@ -92,7 +93,13 @@ class ResultActivity : AppCompatActivity() {
                 putExtra(EX_CHAT_READY, p.chatReady)
                 putExtra(EX_DRAFTS_PENDING, p.draftsPending)
             }
-            ctx.startActivity(i)
+
+        /**
+         * 拉起结果页。返回 false 表示没能拉起（后台启动被系统拦、或没有 Activity 环境），
+         * 调用方据此降级成通知/Toast —— 工具最忌讳"点了没反应"。
+         */
+        fun show(ctx: Context, p: ResultPayload): Boolean = try {
+            ctx.startActivity(intent(ctx, p))
             true
         } catch (t: Throwable) {
             AppLog.add("结果页启动失败：${t.javaClass.simpleName} ${t.message ?: ""}")
@@ -142,8 +149,16 @@ class ResultActivity : AppCompatActivity() {
             12.5f, cOnSurfaceVariant, bold = false
         ).apply { setPadding(0, dp(2), 0, dp(10)) })
 
-        // ── 攻略度：这一屏的主角，所以给最大的字号 ──
+        // ── 攻略度：这一屏的主角 —— 装进一张圆角英雄卡里，和下面的判读/文案拉开层次 ──
         if (guide >= 0) {
+            val hero = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(18), dp(16), dp(18), dp(18))
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    setColor(cContainerLow)
+                    cornerRadius = dp(24).toFloat()
+                }
+            }
             val head = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.BOTTOM
@@ -161,10 +176,11 @@ class ResultActivity : AppCompatActivity() {
             head.addView(text(tailText, 14f, tailColor, bold = true).apply {
                 setPadding(0, 0, 0, dp(12))
             })
-            root.addView(head)
+            hero.addView(head)
 
-            root.addView(LinearProgressIndicator(this).apply {
-                setProgressCompat(guide, false)
+            // 进度条带动画：从 0 走到当前值，一眼看出"到了哪个档"，比静态条更有"判读完了"的完成感
+            hero.addView(LinearProgressIndicator(this).apply {
+                setProgressCompat(guide, true)
                 max = 100
                 trackCornerRadius = dp(5)
                 trackThickness = dp(8)
@@ -172,8 +188,9 @@ class ResultActivity : AppCompatActivity() {
                 setTrackColor(attr(com.google.android.material.R.attr.colorSurfaceVariant))
                 layoutParams = LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-                ).apply { topMargin = dp(2); bottomMargin = dp(14) }
+                ).apply { topMargin = dp(2) }
             })
+            root.addView(hero, matchWrap(top = 0, bottom = 14))
         }
 
         // ── Jev 判读行：放在一张低层卡片里，跟文案区分开 ──
@@ -281,7 +298,7 @@ class ResultActivity : AppCompatActivity() {
             // 整张卡片可点＝复制。用 MaterialCardView 而不是自己画背景，是为了白拿涟漪反馈 ——
             // 点了没反应是这类"复制型"界面最让人不放心的地方。
             val card = MaterialCardView(this).apply {
-                radius = dp(16).toFloat()
+                radius = dp(18).toFloat()
                 cardElevation = 0f
                 strokeWidth = 0
                 setCardBackgroundColor(cContainerHigh)
@@ -295,7 +312,7 @@ class ResultActivity : AppCompatActivity() {
                     finish()
                 }
             }
-            draftsBox.addView(card, matchWrap(top = 8, bottom = 0))
+            draftsBox.addView(card, matchWrap(top = 10, bottom = 0))
         }
     }
 

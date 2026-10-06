@@ -15,18 +15,13 @@ import android.widget.Toast
 object Toast3 {
 
     private val main = Handler(Looper.getMainLooper())
-    private var showing = false
 
     fun showLines(app: Context, lines: List<String>, gapMs: Int, onDone: (() -> Unit)? = null) {
         val ctx = app.applicationContext
-        showing = true
         lines.forEachIndexed { i, text ->
             main.postDelayed({
                 safeToast(ctx, text)
-                if (i == lines.lastIndex) {
-                    showing = false
-                    onDone?.invoke()
-                }
+                if (i == lines.lastIndex) onDone?.invoke()
             }, (gapMs.toLong() * i))
         }
     }
@@ -34,8 +29,6 @@ object Toast3 {
     fun toast(app: Context, text: String, long: Boolean = false) {
         main.post { safeToast(app.applicationContext, text, long) }
     }
-
-    fun busy(): Boolean = showing
 
     private fun safeToast(ctx: Context, text: String, long: Boolean = false) {
         try {

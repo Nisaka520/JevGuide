@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 结果页的入场：整页快速淡入。浮在微信上面的一层，"啪"地出现太硬，淡入更贴。 -->
+<alpha xmlns:android="http://schemas.android.com/apk/res/android"
+    android:fromAlpha="0.0"
+    android:toAlpha="1.0"
+    android:duration="180"
+    android:interpolator="@android:anim/decelerate_interpolator" />
