@@ -103,10 +103,12 @@ data class Verdict(
 
     private fun pct(p: Double): String {
         if (p <= 0.0) return ""
-        return " " + Math.round(p * 100) + "%"
+        // 上限 100%：接口偶尔给出 >1.0 的概率，直接乘会显示「120%」
+        return " " + Math.round(p.coerceAtMost(1.0) * 100) + "%"
     }
 
-    private fun fmt(d: Double): String = String.format("%.2f", d)
+    /** 小数点必须钉死 Locale：不钉的话在阿拉伯语等系统语言下会渲染成「0,48」 */
+    private fun fmt(d: Double): String = String.format(java.util.Locale.US, "%.2f", d)
 }
 
 object Verdicts {

@@ -102,6 +102,15 @@ class VerdictParseTest {
     }
 
     @Test
+    fun probabilityAboveOneIsCappedAndDecimalsStayLocaleSafe() {
+        // 接口偶尔给出 >1.0 的概率：显示端封顶 100%，不能出现「120%」
+        val hot = Verdicts.parse(zhBody.replace("0.85", "1.20"), "zh")!!
+        assertEquals(1.20, hot.intentP, 1e-9)          // 原值不丢（趋势/详情还要用）
+        assertFalse(hot.coreLine(3).contains("120%"))
+        assertTrue(hot.coreLine(3).contains("100%"))
+    }
+
+    @Test
     fun urgencyWordRoundsToTheFourGrids() {
         fun word(score: Double): String =
             Verdicts.parse("""{"answers":{"urgency":{"score":$score},"intent":{"choice":"其他"}}}""", "zh")!!.urgencyWord()
