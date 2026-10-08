@@ -201,8 +201,11 @@ object ScoreOverlay {
                 PixelFormat.TRANSLUCENT
             ).apply {
                 gravity = Gravity.TOP or Gravity.START
-                x = cfg.overlayX
-                y = cfg.overlayY
+                // 钳回屏幕内：存下来的坐标可能来自换了分辨率/分屏的旧会话，
+                // 不钳的话浮条会被摆到屏幕外，"找不到了"只能去设置关了重开
+                val dm = service.resources.displayMetrics
+                x = cfg.overlayX.coerceIn(0, (dm.widthPixels - dp(service, 48)).coerceAtLeast(0))
+                y = cfg.overlayY.coerceIn(0, (dm.heightPixels - dp(service, 48)).coerceAtLeast(0))
             }
 
             box.setOnTouchListener(DragTap(service, cfg, w, p))

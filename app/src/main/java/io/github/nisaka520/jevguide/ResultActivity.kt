@@ -151,13 +151,16 @@ class ResultActivity : AppCompatActivity() {
 
         // ── 攻略度：这一屏的主角 —— 装进一张圆角英雄卡里，和下面的判读/文案拉开层次 ──
         if (guide >= 0) {
+            // 英雄卡底色带一点分数色渐变：卡片区隔靠色阶不够时，分数色再托一层，
+            // 好坏一眼可辨，但浓度压得很低（10%~22%），不抢 52sp 大数字
+            val tint = guideColor(guide)
             val hero = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(dp(18), dp(16), dp(18), dp(18))
-                background = android.graphics.drawable.GradientDrawable().apply {
-                    setColor(cContainerLow)
-                    cornerRadius = dp(24).toFloat()
-                }
+                background = android.graphics.drawable.GradientDrawable(
+                    android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
+                    intArrayOf(blend(cContainerLow, tint, 0.10f), blend(cContainerLow, tint, 0.22f))
+                ).apply { cornerRadius = dp(24).toFloat() }
             }
             val head = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
@@ -361,6 +364,16 @@ class ResultActivity : AppCompatActivity() {
         p >= 70 -> okColor
         p >= 40 -> midColor
         else -> badColor
+    }
+
+    /** 两个颜色按比例混合（ratio=0 → a，1 → b）：给英雄卡调低浓度的分数色底 */
+    private fun blend(a: Int, b: Int, ratio: Float): Int {
+        val ar = (a shr 16) and 0xFF; val ag = (a shr 8) and 0xFF; val ab = a and 0xFF
+        val br = (b shr 16) and 0xFF; val bg = (b shr 8) and 0xFF; val bb = b and 0xFF
+        val r = (ar + (br - ar) * ratio).toInt().coerceIn(0, 255)
+        val g = (ag + (bg - ag) * ratio).toInt().coerceIn(0, 255)
+        val bl = (ab + (bb - ab) * ratio).toInt().coerceIn(0, 255)
+        return (0xFF shl 24) or (r shl 16) or (g shl 8) or bl
     }
 
     // ────────────────────────── 小工具（MD3）

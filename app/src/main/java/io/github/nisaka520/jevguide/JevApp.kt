@@ -24,5 +24,10 @@ class JevApp : Application() {
     override fun onCreate() {
         super.onCreate()
         DynamicColors.applyToActivitiesIfAvailable(this)
+        // 老版本升上来的用户：把仍为明文的密钥立刻转成 Keystore 密文（幂等，失败无害）
+        try {
+            KeyVault.migrate(this)
+        } catch (_: Throwable) {
+        }
     }
 }

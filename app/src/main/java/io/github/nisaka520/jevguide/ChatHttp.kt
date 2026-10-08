@@ -67,6 +67,10 @@ object ChatHttp {
         if (baseUrl.isBlank()) return ChatResult.Err("base_url 没填")
         if (apiKey.isBlank()) return ChatResult.Err("API Key 没填")
         if (model.isBlank()) return ChatResult.Err("模型名没填")
+        // 明文 http 只放行本机/内网（自建网关请上证书）：不然密钥、聊天内容、
+        // 视觉模式的截图全部明文裸奔给链路上的任何人。这里的报错比系统的
+        // CLEARTEXT communication not permitted 好懂得多。
+        httpGuard(baseUrl)?.let { return ChatResult.Err(it) }
 
         val payload = linkedMapOf<String, Any?>(
             "model" to model,
@@ -103,6 +107,22 @@ object ChatHttp {
             maxTokens = 200,
             temperature = 0.0
         )
+
+    /**
+     * 明文端点闸门：返回 null＝放行；返回一段人话＝拒绝原因。
+     * 放行条件 = https，或 http 但目标是本机/内网（127./10./192.168./172.16~31./localhost）。
+     */
+    fun httpGuard(baseUrl: String): String? {
+        val u = baseUrl.trim().lowercase()
+        if (!u.startsWith("http://")) return null            // https:// 或别的奇怪协议交给平台
+        val host = u.removePrefix("http://").substringBefore('/').substringBefore(':')
+        val lan = host == "localhost" || host.startsWith("127.") || host.startsWith("10.") ||
+            host.startsWith("192.168.") ||
+            // 172.16~31.x 是私有段；containsMatchIn 而非 matches：后面还有 .x.x 没吃完
+            Regex("""^172\.(1[6-9]|2\d|3[01])\.""").containsMatchIn(host)
+        return if (lan) null
+        else "端点是明文 http，密钥和聊天内容会在链路上裸奔 —— 改用 https，或换成内网地址（现在是 $host）"
+    }
 
     /**
      * 端点拼接：`baseUrl.trimEnd('/') + "/chat/completions"`。

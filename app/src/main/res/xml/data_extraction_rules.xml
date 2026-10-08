@@ -8,15 +8,20 @@
   - files/memory/（每个联系人的对话原文、摘要、事实）
   会一起被搬过去 —— 用户以为自己"没开备份"，实际密钥和聊天记忆跟着走了。
 
-  这里把两者都排除：迁移是"换机"，跟"备份到云"一样不该带走密钥与聊天记录。
+  v1.4.1 起把 external（外部私有目录）也排除：抓屏诊断文件和「导出记忆」都落在那儿，
+  一样是聊天原文，不该跟着备份/换机走（原来漏了这个域，隐私政策说「不会带走」实际带得走）。
+
+  这里把三个域都排除：迁移是"换机"，跟"备份到云"一样不该带走密钥与聊天记录。
 -->
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="sharedpref" path="." />
         <exclude domain="file" path="." />
-  </cloud-backup>
+        <exclude domain="external" path="." />
+    </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="." />
         <exclude domain="file" path="." />
+        <exclude domain="external" path="." />
     </device-transfer>
 </data-extraction-rules>

@@ -258,7 +258,10 @@ object Analyzer {
             val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 nm.createNotificationChannel(
-                    NotificationChannel("jevguide_result", "分析结果", NotificationManager.IMPORTANCE_DEFAULT)
+                    NotificationChannel("jevguide_result", "分析结果", NotificationManager.IMPORTANCE_DEFAULT).apply {
+                        // 通知正文是聊天判读与文案，锁屏上不该被扫一眼就看走
+                        lockscreenVisibility = android.app.Notification.VISIBILITY_SECRET
+                    }
                 )
             }
             val body = buildString {

@@ -3,16 +3,14 @@
   自适应图标（API 26+ 唯一需要的定义 —— minSdk 就是 26，所以不用再塞任何 PNG 兜底，
   mipmap-anydpi-v26 就覆盖了全部设备）。
 
-  三层：
-    background 深青→亮青的对角渐变
-    foreground 描边气泡 + 上升箭头
-    monochrome Android 13+ 的"主题图标"层，系统按 alpha 自己上色
-
-  monochrome 直接复用前景：前景本来就只有白色（纯 alpha 图形），
-  再抄一份一模一样的矢量只会多一处要同步维护的地方。
+  v1.4 起 foreground 换成 AI 生成的位图（气泡+声波+爱心，靛青→青渐变）：
+    background  生成图的底色（@color/launcher_bg，四角取样均值）
+    foreground  位图前景（mipmap 各密度，主体缩在 66% 安全区内）
+    monochrome  亮度蒙版版（Android 13+ 主题图标：亮的波条/气泡留形状，深底透明）
+  旧矢量 ic_launcher_fg/bg 不再被这里引用，保留作历史参照。
 -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@drawable/ic_launcher_bg" />
-    <foreground android:drawable="@drawable/ic_launcher_fg" />
-    <monochrome android:drawable="@drawable/ic_launcher_fg" />
+    <background android:drawable="@color/launcher_bg" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+    <monochrome android:drawable="@mipmap/ic_launcher_monochrome" />
 </adaptive-icon>

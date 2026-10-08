@@ -10,9 +10,11 @@ class Config(ctx: Context) {
 
     private val sp = ctx.applicationContext.getSharedPreferences("jevguide", Context.MODE_PRIVATE)
 
+    // 三把密钥走 KeyVault（AndroidKeyStore AES-GCM）加解密：写入时加密、读取时解密。
+    // 老版本留下的明文值读的时候原样透传，下次写入自动转密文（启动时 migrate 再兜底一次）。
     var apiKey: String
-        get() = sp.getString("api_key", "").orEmpty()
-        set(v) = sp.edit().putString("api_key", v.trim()).apply()
+        get() = KeyVault.decrypt(sp.getString("api_key", "").orEmpty())
+        set(v) = sp.edit().putString("api_key", KeyVault.encrypt(v.trim())).apply()
 
     var model: String
         get() = sp.getString("model", Prompt.MODELS[0]).orEmpty().ifEmpty { Prompt.MODELS[0] }
@@ -104,8 +106,8 @@ class Config(ctx: Context) {
         set(v) = sp.edit().putString("chat_base_url", v.trim()).apply()
 
     var chatApiKey: String
-        get() = sp.getString("chat_api_key", "").orEmpty()
-        set(v) = sp.edit().putString("chat_api_key", v.trim()).apply()
+        get() = KeyVault.decrypt(sp.getString("chat_api_key", "").orEmpty())
+        set(v) = sp.edit().putString("chat_api_key", KeyVault.encrypt(v.trim())).apply()
 
     var chatModel: String
         get() = sp.getString("chat_model", DEFAULT_CHAT_MODEL).orEmpty().ifEmpty { DEFAULT_CHAT_MODEL }
@@ -177,8 +179,8 @@ class Config(ctx: Context) {
         set(v) = sp.edit().putString("vision_base_url", v.trim()).apply()
 
     var visionApiKey: String
-        get() = sp.getString("vision_api_key", "").orEmpty()
-        set(v) = sp.edit().putString("vision_api_key", v.trim()).apply()
+        get() = KeyVault.decrypt(sp.getString("vision_api_key", "").orEmpty())
+        set(v) = sp.edit().putString("vision_api_key", KeyVault.encrypt(v.trim())).apply()
 
     /** 视觉读屏的模型名（必须是**看得懂图**的模型）；留空就跟文案用同一个 */
     var visionModel: String

@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  网络安全配置：默认只允许 HTTPS，只为**自建的 OpenAI 兼容端点**按 IP 开明文例外。
+  网络安全配置：默认只允许 HTTPS，只为本机/模拟器调试端点开明文例外。
 
-  为什么需要它：targetSdk ≥ 28 时 Android 默认禁止明文 HTTP，而自建/自托管的网关
-  （比如 n4 上的 aurora、n1 上的中转站）往往只有 HTTP，没有证书。不放开的话，
-  聊天模型那一栏填 http://… 会直接连不上，而且报错很难懂（CLEARTEXT communication not permitted）。
+  为什么需要它：targetSdk ≥ 28 时 Android 默认禁止明文 HTTP。调试本机假端点
+  （127.0.0.1 / 10.0.2.2）确实只有 http，放开这一小片；其余一律 https。
 
   为什么不做成"全局放开"：那等于对所有连接都关掉这道保护。这里只放白名单，
   公网服务（DeepSeek / OpenAI 等）仍然必须走 HTTPS —— 密钥不该在明文里裸奔。
@@ -14,9 +13,8 @@
     <base-config cleartextTrafficPermitted="false" />
 
     <domain-config cleartextTrafficPermitted="true">
-        <!-- 自建节点：n4（aurora 直连 / chat2api）、n1（中转站） -->
-        <domain includeSubdomains="false">23.251.34.187</domain>
-        <domain includeSubdomains="false">103.36.222.172</domain>
+        <!-- v1.4.1 起不再放行任何公网 IP 的明文：http 端点=密钥与聊天内容裸奔给中间人。
+             自建网关请配证书走 https，这里只剩本机调试例外。 -->
         <!-- 本机调试（比如在电脑上跑个假的 OpenAI 端点） -->
         <domain includeSubdomains="false">127.0.0.1</domain>
         <domain includeSubdomains="false">localhost</domain>

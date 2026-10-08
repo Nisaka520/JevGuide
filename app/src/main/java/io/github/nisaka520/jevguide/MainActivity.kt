@@ -65,7 +65,7 @@ class MainActivity : AppCompatActivity() {
         // 首启先把"要读聊天内容并上传到你配的接口"讲清楚、拿到明确同意（详见 maybeAskConsent）
         maybeAskConsent()
 
-        title("弦外之音")
+        heroCard()
         sub("点下面任一项进设置。判读本身不用打开这个 App —— 在微信里点浮条就行。")
 
         // 状态 + 启动直接放首页：这两个是「能不能用」的关键，不该藏在二级页里
@@ -117,6 +117,57 @@ class MainActivity : AppCompatActivity() {
     private lateinit var statusText: TextView
     private lateinit var statusDot: View
     private lateinit var statusDotBg: GradientDrawable
+
+    /**
+     * 顶部英雄卡：AI 生成的声波横幅做底，App 名与一句话主张叠在左侧留白区。
+     * 图上文字用固定浅色（@color/hero_on_banner）而不是主题属性 —— 横幅本身是深色画，
+     * 跟着壁纸取色换字色会在深底上变深字。
+     */
+    private fun heroCard() {
+        val banner = android.widget.ImageView(this).apply {
+            setImageResource(R.drawable.hero_banner)
+            scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+        }
+        val title = TextView(this).apply {
+            text = "弦外之音"
+            setTextColor(getColor(R.color.hero_on_banner))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 30f)
+            typeface = Typeface.DEFAULT_BOLD
+            setShadowLayer(8f, 0f, 2f, 0x66000000)
+        }
+        val tagline = TextView(this).apply {
+            text = "听懂每句话的言外之意"
+            setTextColor(getColor(R.color.hero_on_banner))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13.5f)
+            alpha = 0.92f
+            setShadowLayer(6f, 0f, 2f, 0x66000000)
+            setPadding(0, dp(3), 0, 0)
+        }
+        val overlay = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(18), dp(20), dp(16))
+            addView(title)
+            addView(tagline)
+        }
+        val frame = android.widget.FrameLayout(this).apply {
+            background = GradientDrawable().apply {
+                setColor(0xFF0A1022.toInt())
+                cornerRadius = dp(24).toFloat()
+            }
+            clipToOutline = true
+            addView(banner, android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
+            ))
+            addView(overlay, android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ))
+            // 圆角裁切：clipToOutline 要 outlineProvider 认背景才生效
+            outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
+        }
+        page.addView(frame, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(132)
+        ).apply { topMargin = dp(4) })
+    }
 
     /** 首页顶部状态：一眼看清「能不能用」，不用点进去猜 */
     private fun statusCard() {
@@ -400,20 +451,12 @@ class MainActivity : AppCompatActivity() {
     private val cContainerHigh: Int
         get() = attr(com.google.android.material.R.attr.colorSurfaceContainerHigh, 0xFFE7E8EC.toInt())
 
-    private fun title(t: String) = page.addView(TextView(this).apply {
-        text = t
-        setTextColor(cOnSurface)
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 28f)
-        typeface = Typeface.DEFAULT_BOLD
-        setPadding(0, dp(8), 0, dp(4))
-    })
-
     private fun sub(t: String) = page.addView(TextView(this).apply {
         text = t
         setTextColor(cOnSurfaceVariant)
         setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
         setLineSpacing(dp(4).toFloat(), 1f)
-        setPadding(dp(2), 0, dp(2), dp(6))
+        setPadding(dp(2), dp(10), dp(2), dp(6))
     })
 
     private fun dp(v: Int): Int = Math.round(v * resources.displayMetrics.density)

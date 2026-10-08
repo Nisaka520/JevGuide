@@ -23,13 +23,31 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      # 签名：配了仓库 secrets 就用**正式签名**（KEVGUIDE_KEYSTORE_B64 = keystore 文件的 base64，
+      # 其余三项见 Secrets 说明）。没配则降级用仓库里那把公开调试签名并显式警告 ——
+      # 那把钥匙人人可得，谁都能伪造同签名的「升级包」接管老用户数据，只适合起步期。
+      - name: 准备签名（有 secrets 用正式签名）
+        env:
+          KS_B64: ${{ secrets.KEVGUIDE_KEYSTORE_B64 }}
+          KS_STOREPASS: ${{ secrets.KEVGUIDE_STORE_PASSWORD }}
+          KS_KEYPASS: ${{ secrets.KEVGUIDE_KEY_PASSWORD }}
+          KS_ALIAS: ${{ secrets.KEVGUIDE_KEY_ALIAS }}
+        run: |
+          if [ -n "$KS_B64" ] && [ -n "$KS_STOREPASS" ] && [ -n "$KS_KEYPASS" ] && [ -n "$KS_ALIAS" ]; then
+            echo "$KS_B64" | base64 -d > release-signing.jks
+            printf 'storeFile=release-signing.jks\nstorePassword=%s\nkeyPassword=%s\nkeyAlias=%s\n' \
+              "$KS_STOREPASS" "$KS_KEYPASS" "$KS_ALIAS" > keystore.properties
+            echo "::notice::本次用正式签名打包"
+          else
+            echo "::warning::没配 KEVGUIDE_* secrets，降级用仓库公开调试签名 —— 该签名公开可得，伪造升级包可接管老用户数据（详见 README「发布签名」）"
+          fi
+
       - name: 单元测试（纯逻辑层）
         run: ./gradlew --no-daemon testDebugUnitTest
 
       # 对外发的是 **release 变体**：没有 debuggable，也没有 debug 清单里那个 exported 的调试广播
       # （debug 变体两者都有 —— 本机任意 App 发一条广播就能触发判读/截屏）。
-      # 签名走 build.gradle.kts 的兜底：CI 里没有 keystore.properties，就用仓库里那把公开的调试签名，
-      # 保证产物**装得上**、并且和以前的 debug 版是同一把钥匙（老用户还能覆盖升级）。
+      # 签名由上面「准备签名」那步决定：secrets 配了用正式钥匙，没配降级公开调试钥匙（会有警告）。
       - name: 打包 APK
         run: ./gradlew --no-daemon assembleRelease
 

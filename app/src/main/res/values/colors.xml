@@ -9,6 +9,10 @@
   Android 12+ 上整套会被「壁纸取色」覆盖（见 JevApp + DynamicColors），这里是不支持动态取色时的兜底。
 -->
 <resources>
+    <!-- ── 图标与横幅：自适应图标背景层（生成图标的底色）+ 英雄横幅上的文字色 ── -->
+    <color name="launcher_bg">#FF0A1022</color>
+    <color name="hero_on_banner">#FFF2F7FF</color>
+
     <!-- ── 代码在用的语义色（浅色）── -->
     <color name="bg">#FFF7FAF9</color>
     <color name="card">#FFEDF2F1</color>

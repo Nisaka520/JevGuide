@@ -135,6 +135,13 @@ object WeChatReader {
             sb.append("rootInActiveWindow = null（微信没在前台？或者这版微信不给无障碍树）\n")
             return sb.toString()
         }
+        // 诊断只针对微信：别的 App 的无障碍树不该被导出（读屏授权是为了读微信，
+        // 不是为了把银行/验证码页面的节点文本落盘）。跟 capture() 的包名闸同一个口径。
+        val pkg = root.packageName?.toString().orEmpty()
+        if (pkg != WECHAT_PKG) {
+            sb.append("前台不是微信（pkg=").append(pkg.ifEmpty { "未知" }).append("），本次不导出节点树\n")
+            return sb.toString()
+        }
         sb.append("root: pkg=").append(root.packageName)
             .append(" class=").append(root.className)
             .append(" windowId=").append(root.windowId)
