@@ -318,7 +318,7 @@ class SettingsActivity : AppCompatActivity() {
             )
         }
 
-        val chatBase = edit(cfg.chatBaseUrl, "http://ABC.com/v1")
+        val chatBase = edit(cfg.chatBaseUrl, "https://…/v1（明文 http 会被拦）")
         val chatKey = edit(cfg.chatApiKey, "sk-…（只存在本机）", password = true)
         val chatModel = edit(cfg.chatModel, "glm-5.3-flash")
         button("保存聊天模型配置") {
@@ -432,7 +432,7 @@ class SettingsActivity : AppCompatActivity() {
             "读取方式", listOf("自动（先无障碍，读空转视觉）", "只用无障碍树", "只用视觉读屏"),
             listOf("auto", "a11y", "vision").indexOf(cfg.readMode).coerceAtLeast(0)
         ) { cfg.readMode = listOf("auto", "a11y", "vision")[it] }
-        val vBase = edit(cfg.visionBaseUrl, "http://ABC.com/v1（留空＝跟聊天模型共用）")
+        val vBase = edit(cfg.visionBaseUrl, "https://…/v1（留空＝跟聊天模型共用）")
         val vKey = edit(cfg.visionApiKey, "留空＝跟聊天模型共用", password = true)
         val vModel = edit(cfg.visionModel, "留空＝跟聊天模型共用（当前 ${cfg.chatModel}）")
         button("保存视觉读屏配置") {
@@ -794,29 +794,42 @@ class SettingsActivity : AppCompatActivity() {
     /**
      * 分区标题。screen 非空表示「这个分区属于哪一屏」：首页点某个入口进来时，
      * 只保留属于那一屏的分区，其余整段删掉。
+     *
+     * v1.5 起：所有分区统一成「彩色胶囊 + 前置色点」——跟首页入口卡片的视觉语言一致，
+     * 每一屏里分组结构一眼可见。accent 是这组的主题色（与首页入口同色）。
      */
-    private fun section(t: String, screen: String = "", accent: Int = 0) = page.addView(TextView(this).apply {
-        text = t
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 16.5f)
-        typeface = android.graphics.Typeface.DEFAULT_BOLD
-        if (accent == 0) {
-            setTextColor(cPrimary)
-            setPadding(0, dp(22), 0, dp(4))
-        } else {
-            // 模型配置那三块用「带色底的分组头」区分：色底是 14% 的强调色 + 1dp 描边，
-            // 不刺眼但一眼能看出这是三组不同的东西，而不是一长串同款设置项。
-            setTextColor(accent)
-            setPadding(dp(14), dp(12), dp(14), dp(12))
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = dp(22); bottomMargin = dp(2) }
+    private fun section(t: String, screen: String = "", accent: Int = 0) {
+        val color = if (accent == 0) cPrimary else accent
+        val dot = View(this).apply {
             background = GradientDrawable().apply {
-                setColor(withAlpha(accent, 0.14f))
-                cornerRadius = dp(14).toFloat()
-                setStroke(dp(1), withAlpha(accent, 0.35f))
+                shape = GradientDrawable.OVAL
+                setColor(color)
+            }
+            layoutParams = LinearLayout.LayoutParams(dp(9), dp(9)).apply {
+                rightMargin = dp(10)
+                gravity = Gravity.CENTER_VERTICAL
             }
         }
-    }).also {
+        val head = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(14), dp(10), dp(14), dp(10))
+            background = GradientDrawable().apply {
+                setColor(withAlpha(color, 0.12f))
+                cornerRadius = dp(14).toFloat()
+                setStroke(dp(1), withAlpha(color, 0.30f))
+            }
+            addView(dot)
+            addView(TextView(this@SettingsActivity).apply {
+                text = t
+                setTextColor(color)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 15.5f)
+                typeface = android.graphics.Typeface.DEFAULT_BOLD
+            })
+        }
+        page.addView(head, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { topMargin = dp(24); bottomMargin = dp(2) })
         sectionRuns.add(page.childCount - 1 to screen)
     }
 
@@ -833,7 +846,7 @@ class SettingsActivity : AppCompatActivity() {
         setTextColor(cOnSurfaceVariant)
         setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
         setLineSpacing(dp(4).toFloat(), 1f)
-        setPadding(dp(2), dp(2), dp(2), dp(8))
+        setPadding(dp(4), dp(4), dp(4), dp(8))
     })
 
     /**
@@ -855,13 +868,14 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
+    /** 控制台块（状态/最近结果/日志/记忆）：统一「低层容器 + 等宽小字」，一眼是"机器输出" */
     private fun body(t: String) = TextView(this).apply {
         text = t
         setTextColor(cOnSurface)
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f)
         typeface = android.graphics.Typeface.MONOSPACE
         setLineSpacing(dp(3).toFloat(), 1f)
-        setPadding(dp(14), dp(14), dp(14), dp(14))
+        setPadding(dp(14), dp(13), dp(14), dp(13))
         background = card(cContainerLow)
         // 日志/记忆是要能选中复制的 —— 读不到东西时用户得能把它发给作者
         setTextIsSelectable(true)
@@ -875,15 +889,20 @@ class SettingsActivity : AppCompatActivity() {
         multiline: Boolean = false
     ): EditText {
         val box = TextInputLayout(this).apply {
-            // 描边盒（OutlinedBox）是 MD3 里最"表单"的一种，标签会浮到边框上，省一行标题
-            boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_FILLED
-            // 一次设四个角：Material 1.12 里单独设 TopEnd/BottomStart/BottomEnd 的 setter 已被移除
-            // （写成属性会报 'val' cannot be reassigned），setBoxCornerRadii 才是稳的写法
-            setBoxCornerRadii(dp(8).toFloat(), dp(8).toFloat(), 0f, 0f)
+            // 完整描边盒（OutlinedBox）：标签浮在边框上，四个角统一 12dp ——
+            // 原来那个「填充盒 + 底部直角」是半套 MD2 观感，截图里最显旧的就是它
+            boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
+            setBoxCornerRadii(dp(12).toFloat(), dp(12).toFloat(), dp(12).toFloat(), dp(12).toFloat())
+            boxStrokeColor = attr(com.google.android.material.R.attr.colorPrimary)
+            // 参数名与 TextInputLayout.hint 同名，apply 里裸写 hint 会两边都绑到参数上（val 自赋值），
+            // 必须显式走 setter
+            setHint(hint)
+            // 密码框配「小眼睛」：密钥 100 来个字符，遮着填根本没法核对
+            // （endIconMode 是 val，Material 1.12 里只能走 setter —— 写属性就是编译错）
+            if (password) setEndIconMode(TextInputLayout.END_ICON_PASSWORD_TOGGLE)
         }
         val et = TextInputEditText(box.context).apply {
             setText(value)
-            this.hint = hint
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
             setSingleLine(!multiline)
             if (password) inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
@@ -932,10 +951,11 @@ class SettingsActivity : AppCompatActivity() {
     private fun spinner(label: String, options: List<String>, index: Int, onPick: (Int) -> Unit) {
         val box = TextInputLayout(this).apply {
             hint = label
-            boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_FILLED
-            // 一次设四个角：Material 1.12 里单独设 TopEnd/BottomStart/BottomEnd 的 setter 已被移除
-            // （写成属性会报 'val' cannot be reassigned），setBoxCornerRadii 才是稳的写法
-            setBoxCornerRadii(dp(8).toFloat(), dp(8).toFloat(), 0f, 0f)
+            boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
+            setBoxCornerRadii(dp(12).toFloat(), dp(12).toFloat(), dp(12).toFloat(), dp(12).toFloat())
+            boxStrokeColor = attr(com.google.android.material.R.attr.colorPrimary)
+            // 尾部一个下拉箭头：不标的话根本看不出这框能点（endIconMode 同理走 setter）
+            setEndIconMode(TextInputLayout.END_ICON_DROPDOWN_MENU)
         }
         val tv = MaterialAutoCompleteTextView(box.context).apply {
             inputType = InputType.TYPE_NULL                      // 只选不打字
@@ -962,15 +982,15 @@ class SettingsActivity : AppCompatActivity() {
             text = label
             textSize = 13.5f
             isAllCaps = false                 // 中文按钮千万别跟着英文规则全大写
-            cornerRadius = dp(12)
+            cornerRadius = dp(14)
             if (!filled) {
-                // MD3 的「tonal」按钮：形状跟 filled 一样，但用 secondaryContainer 这类低饱和容器色 ——
-                // 设置页一屏几十个按钮，全用实心主色会吵得没法看。
-                // Material 1.12 没暴露 tonal 的 style 属性（materialButtonTonalStyle 不存在），所以自己染。
+                // MD3 的 tonal 按钮：secondaryContainer 容器色 + 同系前景色。
+                // 原来非主按钮是「全透明底 + 主色字」，几十个排下来像一堆裸链接，
+                // 没有可点目标的样子；tonal 有底色但低饱和，一屏几十个也不吵。
                 backgroundTintList = android.content.res.ColorStateList.valueOf(
-                    0x00000000
+                    attr(com.google.android.material.R.attr.colorSecondaryContainer)
                 )
-                setTextColor(cPrimary)
+                setTextColor(attr(com.google.android.material.R.attr.colorOnSecondaryContainer))
             }
             setOnClickListener { onClick() }
         }
