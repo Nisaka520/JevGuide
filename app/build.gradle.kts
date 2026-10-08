@@ -13,8 +13,8 @@ android {
         applicationId = "io.github.nisaka520.jevguide"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "1.3.1"
+        versionCode = 6
+        versionName = "1.4.0"
     }
 
     /**
