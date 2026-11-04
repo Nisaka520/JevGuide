@@ -220,9 +220,7 @@ class WatchService : AccessibilityService() {
         // 三个手动入口（浮条重扫 / 通知栏 / 无障碍按钮）都汇聚到这个函数，
         // 在这里拦一道，等于全都拦住了 —— 原来只有自动那条路查了 busy。
         if (Analyzer.busy()) {
-            android.widget.Toast.makeText(
-                this, "上一次还在判读，等这次出结果再点", android.widget.Toast.LENGTH_SHORT
-            ).show()
+            Toast3.toast(this, "上一次还在判读，等这次出结果再点")
             return
         }
         val cfg = Config(this)

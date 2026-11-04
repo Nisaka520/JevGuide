@@ -1,107 +1,335 @@
-﻿package io.github.nisaka520.jevguide
+package io.github.nisaka520.jevguide
 
 import android.Manifest
 import android.content.ComponentName
 import android.content.Intent
-import android.content.res.ColorStateList
 import android.os.Build
-import android.provider.Settings
-import android.widget.Toast
-import android.graphics.Typeface
-import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
-import android.util.TypedValue
+import android.provider.Settings
 import android.view.Gravity
-import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
+import io.github.nisaka520.jevguide.ui.Design
+import io.github.nisaka520.jevguide.ui.UiKit
+import io.github.nisaka520.jevguide.ui.installSystemBarInsets
+import io.github.nisaka520.jevguide.ui.isNight
+import io.github.nisaka520.jevguide.ui.playForwardTransition
+import io.github.nisaka520.jevguide.ui.registerOpenTransition
 
 /**
- * 首页：把设置拆成几个入口，而不是一上来丢一整页几十项给用户。
+ * 首页：「仪表台」。
  *
- * 为什么值得单独做一屏：设置页现在有十几个分区、几十个控件（状态、密钥、联系人表、
- * 判读、聊天模型、记忆、读取方式、悬浮条、诊断、维护），第一次打开的人根本不知道该从哪下手。
- * 首页只回答一个问题：「你想干什么」，点进去再落到那一分区。
+ * 为什么值得单独做一屏：设置页有十几个分区、几十个控件（状态、密钥、联系人表、
+ * 判读、聊天模型、记忆、读取方式、悬浮条、诊断、维护），第一次打开的人根本不知道从哪下手。
+ * 首页只回答两个问题：
+ *  1. **现在能不能用？** —— 就绪面板：一排状态灯 + 一个总开关（启动）。
+ *  2. **想去哪一分区调东西？** —— 7 张编号入口行，点进去带 `section=<key>` 打开设置页。
  *
- * 实现上**不复制任何设置逻辑**：每个入口只是带着 `section=<key>` 打开设置页，
- * 设置页建完页面后滚到对应分区。所以以后增删设置项，首页不需要跟着改
- * （除了这一屏的文案），也不会出现"两处配置不一致"这种经典坑。
+ * 实现上**不复制任何设置逻辑**：每个入口只是带着 `section` 打开设置页，设置页建完页面后
+ * 滚到对应分区。所以以后增删设置项，首页不需要跟着改（除了这一屏的文案），
+ * 也不会出现"两处配置不一致"这种经典坑。section 的合法值以 SettingsActivity 的
+ * `sectionRuns` 为准（a11y/overlay/key/relation/memory/adv/about）。
+ *
+ * 视觉（「仪表台」方向，变量全部来自 [Design]）：首屏主角是**就绪面板**——
+ * 大号状态词（已就绪/缺配置/未启动）配红绿灯 LED，四条检查行可逐项扫读；
+ * 设置入口退成编号行，accent 只出现在编号上（剂量 ≤10%）。不做插画、不堆阴影，
+ * 层次全靠字号、容器色阶与留白。
  */
 class MainActivity : AppCompatActivity() {
 
     private lateinit var page: LinearLayout
 
+    // ── 就绪面板的活引用：onResume（从系统设置授权回来）要整组重刷 ──
+    private lateinit var verdictLed: UiKit.Led
+    private lateinit var verdictWord: TextView
+    private val checkLeds = ArrayList<UiKit.Led>()
+    private val checkValues = ArrayList<TextView>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        page = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(24), dp(16), dp(32))
+
+        page = UiKit.column(this).apply {
+            setPadding(dp(Design.Space.L), dp(Design.Space.XL), dp(Design.Space.L), dp(Design.Space.XL))
         }
         val scroll = ScrollView(this).apply {
             addView(page)
-            clipToPadding = false
+            installSystemBarInsets()
         }
-        // 跟设置页一样：targetSdk 35 起系统强制全面屏，得自己把系统栏高度吃成内边距
-        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(scroll) { v, insets ->
-            val bars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
-            v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
-            insets
-        }
-        // Android 14（API 34）起，targetSdk >= 34 的应用里 overridePendingTransition **会被系统忽略** ——
-        // 实测就是「点进去完全没有动画」（用户反馈），而退出那半边因为是系统默认转场所以有动静。
-        // 新 API 必须写在 onCreate 里（转场发生前）才会生效，所以放在这里而不是点击回调里。
-        if (Build.VERSION.SDK_INT >= 34) {
-            overrideActivityTransition(
-                OVERRIDE_TRANSITION_OPEN, R.anim.slide_in_right, R.anim.slide_out_left
-            )
-        }
+        // API34+ 的转场必须在 onCreate 注册才会生效（老 API 那半边在 openSection 的
+        // playForwardTransition 里兜底）—— ThemeExt 里封装的双路径
+        registerOpenTransition()
         setContentView(scroll)
 
         // 首启先把"要读聊天内容并上传到你配的接口"讲清楚、拿到明确同意（详见 maybeAskConsent）
         maybeAskConsent()
 
-        heroCard()
-        sub("点下面任一项进设置。判读本身不用打开这个 App —— 在微信里点浮条就行。")
+        buildHeader()
+        buildReadinessPanel()
+        buildEntryGroups()
+        buildFooter()
+        refreshStatus()
+    }
 
-        // 状态 + 启动直接放首页：这两个是「能不能用」的关键，不该藏在二级页里
-        statusCard()
-        startButton()
-        stopButton()
+    // ────────────────────────── 页面搭建
 
-        row(
-            "设定无障碍和启动", "开无障碍服务、选读取方式（无障碍树／截图识别）、抓屏诊断",
-            "a11y", 0xFF6FD3C7.toInt()
-        )
-        row(
-            "浮条设置", "常驻浮条的开关、位置与显示内容；点启动后它会当场出现在屏幕上",
-            "overlay", 0xFF7EE0A8.toInt()
-        )
-        row(
-            "模型密钥配置", "填 Jev 密钥（必填）与聊天模型（生成 3 条候选文案用）",
-            "key", 0xFF7FB3FF.toInt()
-        )
-        row(
-            "关系设置", "每个联系人是什么关系（普通朋友／同事／对象…），判读会照这个口径来",
-            "relation", 0xFFFFC46B.toInt()
-        )
-        row(
-            "记忆管理", "看看记了谁、记了什么；也能一键清空。记忆只存本机",
-            "memory", 0xFFB79CFF.toInt()
-        )
-        row(
-            "高级设置", "看/改发给聊天模型的提示词（追加额外要求），以及判读设置",
-            "adv", 0xFF7FB3FF.toInt()
-        )
-        row(
-            "关于本软件", "版本、隐私说明、邀请码与免责声明",
-            "about", 0xFF9AA8BB.toInt()
+    /** 品牌头：一行大字 + 一行副题。不做图片横幅 —— 仪器面板的封面就是状态本身 */
+    private fun buildHeader() {
+        page.addView(UiKit.text(this, "弦外之音", Design.Type.DISPLAY, Design.onSurface(this), bold = true))
+        page.addView(
+            UiKit.text(this, "听懂每句话的言外之意", Design.Type.CAPTION, Design.onSurfaceVariant(this)),
+            wrapTop(Design.Space.XS)
         )
     }
+
+    /** 就绪面板（首屏主角）：总判（LED + 状态词）→ 四条检查行 → 启动/停止 */
+    private fun buildReadinessPanel() {
+        val night = isNight()
+        val box = UiKit.column(this).apply {
+            setPadding(dp(Design.Space.L), dp(Design.Space.L), dp(Design.Space.L), dp(Design.Space.L))
+        }
+        val panel = UiKit.card(this, Design.containerLow(this), Design.Radius.LG).apply { addView(box) }
+
+        // ── 总判：一颗 LED + 一个大字状态词。眯着眼也能扫出"现在能不能用" ──
+        verdictLed = UiKit.Led(this, 14, Design.scoreNeutral(night))
+        verdictWord = UiKit.text(this, "…", Design.Type.DISPLAY, Design.scoreNeutral(night), bold = true)
+        val head = UiKit.row(this).apply { gravity = Gravity.CENTER_VERTICAL }
+        head.addView(verdictLed)
+        head.addView(
+            verdictWord,
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginStart = dp(Design.Space.M)
+            }
+        )
+        box.addView(head)
+        box.addView(
+            UiKit.text(this, "四项检查都过了，就可以去微信里点浮条", Design.Type.CAPTION, Design.onSurfaceVariant(this)),
+            wrapTop(Design.Space.XS)
+        )
+
+        // ── 检查行：每行一颗小 LED + 标签 + 当前值（值里带下一步该去哪的提示）──
+        checkSpecs().forEach { spec ->
+            val row = UiKit.row(this).apply { gravity = Gravity.CENTER_VERTICAL }
+            val led = UiKit.Led(this, 8, Design.scoreNeutral(night))
+            checkLeds.add(led)
+            row.addView(led)
+            val col = UiKit.column(this).apply {
+                addView(UiKit.text(this@MainActivity, spec.label, Design.Type.CAPTION, Design.onSurfaceVariant(this@MainActivity)))
+                addView(
+                    UiKit.text(this@MainActivity, "", Design.Type.BODY, Design.onSurface(this@MainActivity)).also {
+                        checkValues.add(it)
+                    },
+                    wrapTop(Design.Space.XS)
+                )
+            }
+            row.addView(
+                col,
+                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                    marginStart = dp(Design.Space.M)
+                }
+            )
+            box.addView(row, wrapTop(Design.Space.M))
+        }
+
+        // ── 总开关：启动是全页唯一的实心主动作；停止是描边次动作 ──
+        box.addView(
+            UiKit.button(this, "启动判读", filled = true) { doStart() },
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(52)
+            ).apply { topMargin = dp(Design.Space.L) }
+        )
+        box.addView(
+            UiKit.button(this, "全部停止", filled = false) { doStop() },
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(44)
+            ).apply { topMargin = dp(Design.Space.S) }
+        )
+        page.addView(panel, wrapTop(Design.Space.L))
+    }
+
+    /** 三个分组、7 张编号入口行。section 值 = SettingsActivity 的分区协议，逐字对齐 */
+    private fun buildEntryGroups() {
+        entryGroups().forEach { (groupTitle, entries) ->
+            page.addView(
+                UiKit.text(this, groupTitle, Design.Type.CAPTION, Design.onSurfaceVariant(this), bold = true),
+                wrapTop(Design.Space.XL)
+            )
+            entries.forEach { e ->
+                page.addView(entryRow(e), wrapTop(Design.Space.S))
+            }
+        }
+    }
+
+    /** 一行入口：分区色编号 + 标题/说明 + ›。整行可点（涟漪由 MaterialCardView 自带） */
+    private fun entryRow(e: Entry): MaterialCardView {
+        val num = UiKit.text(this, e.no, Design.Type.CAPTION, Design.accent(e.accent, isNight()), bold = true)
+        val texts = UiKit.column(this).apply {
+            addView(
+                UiKit.text(this@MainActivity, e.title, Design.Type.BODY, Design.onSurface(this@MainActivity), bold = true)
+            )
+            addView(
+                UiKit.text(
+                    this@MainActivity, e.sub, Design.Type.CAPTION,
+                    Design.onSurfaceVariant(this@MainActivity), lineSpacingDp = 3
+                ).apply { setPadding(0, dp(Design.Space.XS), 0, 0) },
+                wrapTop(Design.Space.XS)
+            )
+        }
+        val arrow = UiKit.text(this, "›", Design.Type.BODY, Design.onSurfaceVariant(this), bold = true)
+            .apply { alpha = 0.6f }
+
+        val inner = UiKit.row(this).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(Design.Space.L), dp(Design.Space.M), dp(Design.Space.M), dp(Design.Space.M))
+            addView(num, LinearLayout.LayoutParams(dp(24), ViewGroup.LayoutParams.WRAP_CONTENT))
+            addView(
+                texts,
+                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                    .apply { marginStart = dp(Design.Space.XS) }
+            )
+            addView(arrow)
+        }
+        return UiKit.card(this, Design.containerHigh(this), Design.Radius.MD).apply {
+            isClickable = true
+            isFocusable = true
+            addView(inner)
+            setOnClickListener { openSection(e.section) }
+        }
+    }
+
+    /** 页脚一句：判读的真正入口在微信浮条里，不在本 App */
+    private fun buildFooter() {
+        page.addView(
+            UiKit.text(this, "判读本身不用打开这个 App —— 在微信里点浮条就行。", Design.Type.CAPTION, Design.onSurfaceVariant(this))
+                .apply { alpha = 0.75f },
+            wrapTop(Design.Space.XL)
+        )
+    }
+
+    // ────────────────────────── 数据
+
+    private data class CheckSpec(
+        val label: String,
+        val value: (Config) -> String,
+        val level: (Config) -> Int,   // 2=好（绿）1=警告（黄）0=未就绪（灰）
+    )
+
+    /** 四条检查：口径与旧版一致，一条都不能少（这是"能不能用"的完整清单） */
+    private fun checkSpecs(): List<CheckSpec> = listOf(
+        CheckSpec(
+            "无障碍服务",
+            { _ ->
+                when {
+                    WatchService.instance != null -> "运行中 ✓"
+                    a11yEnabled() -> "已授权，但服务还没连上（点启动重挂）"
+                    else -> "未开启（点启动去授权）"
+                }
+            },
+            { _ ->
+                when {
+                    WatchService.instance != null -> 2
+                    a11yEnabled() -> 1
+                    else -> 0
+                }
+            }
+        ),
+        CheckSpec(
+            "Jev 密钥",
+            { cfg -> if (cfg.hasKey()) "已配置（${cfg.apiKey.length} 字符）" else "还没填" },
+            { cfg -> if (cfg.hasKey()) 2 else 0 }
+        ),
+        CheckSpec(
+            "聊天模型",
+            { cfg -> if (cfg.hasChatKey()) cfg.chatModel else "没配（只有判读，没有候选文案）" },
+            { cfg -> if (cfg.hasChatKey()) 2 else 0 }
+        ),
+        CheckSpec(
+            "常驻浮条",
+            { cfg -> if (cfg.overlayEnabled) "开" else "关" },
+            { cfg -> if (cfg.overlayEnabled) 2 else 0 }
+        ),
+    )
+
+    private data class Entry(
+        val no: String,
+        val title: String,
+        val sub: String,
+        val section: String,
+        val accent: Design.Section,
+    )
+
+    /**
+     * 分组信息架构：连接微信 → 判读口径 → 调校与关于。
+     * **section 值必须与 SettingsActivity 的 sectionRuns 逐字一致**（非法值会被
+     * applyScreen 回退成整页设置，入口就失去了定位意义）。
+     */
+    private fun entryGroups(): List<Pair<String, List<Entry>>> = listOf(
+        "连接微信" to listOf(
+            Entry("01", "无障碍与启动", "开无障碍服务、选读取方式（无障碍树／截图识别）、抓屏诊断", "a11y", Design.Section.A11Y),
+            Entry("02", "常驻悬浮条", "开关、位置与显示内容；点启动后它会当场出现在屏幕上", "overlay", Design.Section.OVERLAY),
+        ),
+        "判读口径" to listOf(
+            Entry("03", "模型密钥", "填 Jev 密钥（必填）与聊天模型（生成 3 条候选文案用）", "key", Design.Section.KEY),
+            Entry("04", "关系设置", "每个联系人是什么关系（普通朋友／同事／对象…），判读照这个口径来", "relation", Design.Section.RELATION),
+            Entry("05", "记忆管理", "看看记了谁、记了什么；也能一键清空。记忆只存本机", "memory", Design.Section.MEMORY),
+        ),
+        "调校与关于" to listOf(
+            Entry("06", "高级设置", "看/改发给聊天模型的提示词（追加额外要求），以及判读设置", "adv", Design.Section.ADV),
+            Entry("07", "关于本软件", "版本、隐私说明、邀请码与免责声明", "about", Design.Section.ABOUT),
+        ),
+    )
+
+    // ────────────────────────── 状态刷新
+
+    /**
+     * 从系统设置授权回来时要重新读一遍：面板是建页面时填的，不刷新就会一直显示旧状态
+     * （用户刚授权完回到首页，却还写着「未开启」，会以为授权没生效）。
+     */
+    override fun onResume() {
+        super.onResume()
+        refreshStatus()
+    }
+
+    /**
+     * 总判三态（与旧版 LED 三态同一口径）：
+     * 绿＝服务在跑且两把密钥都齐；黄＝服务在跑但配置还缺；灰＝服务没起来。
+     */
+    private fun refreshStatus() {
+        if (!::verdictWord.isInitialized) return
+        val cfg = Config(this)
+        val night = isNight()
+        val running = WatchService.instance != null
+        val color = when {
+            running && cfg.hasKey() && cfg.hasChatKey() -> Design.scoreGood(night)
+            running -> Design.scoreMid(night)
+            else -> Design.scoreNeutral(night)
+        }
+        verdictLed.setColor(color)
+        verdictWord.setTextColor(color)
+        verdictWord.text = when {
+            running && cfg.hasKey() && cfg.hasChatKey() -> "已就绪"
+            running -> "缺配置"
+            else -> "未启动"
+        }
+        val specs = checkSpecs()
+        specs.forEachIndexed { i, spec ->
+            checkValues[i].text = spec.value(cfg)
+            checkLeds[i].setColor(
+                when (spec.level(cfg)) {
+                    2 -> Design.scoreGood(night)
+                    1 -> Design.scoreMid(night)
+                    else -> Design.scoreNeutral(night)
+                }
+            )
+        }
+    }
+
+    // ────────────────────────── 生命周期与浮条
 
     override fun onStart() {
         super.onStart()
@@ -114,169 +342,7 @@ class MainActivity : AppCompatActivity() {
         ScoreOverlay.setSuppressed(Config(this), false)
     }
 
-    private lateinit var statusText: TextView
-    private lateinit var statusDot: View
-    private lateinit var statusDotBg: GradientDrawable
-
-    /**
-     * 顶部英雄卡：AI 生成的声波横幅做底，App 名与一句话主张叠在左侧留白区。
-     * 图上文字用固定浅色（@color/hero_on_banner）而不是主题属性 —— 横幅本身是深色画，
-     * 跟着壁纸取色换字色会在深底上变深字。
-     */
-    private fun heroCard() {
-        val banner = android.widget.ImageView(this).apply {
-            setImageResource(R.drawable.hero_banner)
-            scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
-        }
-        val title = TextView(this).apply {
-            text = "弦外之音"
-            setTextColor(getColor(R.color.hero_on_banner))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 30f)
-            typeface = Typeface.DEFAULT_BOLD
-            setShadowLayer(8f, 0f, 2f, 0x66000000)
-        }
-        val tagline = TextView(this).apply {
-            text = "听懂每句话的言外之意"
-            setTextColor(getColor(R.color.hero_on_banner))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13.5f)
-            alpha = 0.92f
-            setShadowLayer(6f, 0f, 2f, 0x66000000)
-            setPadding(0, dp(3), 0, 0)
-        }
-        val overlay = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(18), dp(20), dp(16))
-            addView(title)
-            addView(tagline)
-        }
-        val frame = android.widget.FrameLayout(this).apply {
-            background = GradientDrawable().apply {
-                setColor(0xFF0A1022.toInt())
-                cornerRadius = dp(24).toFloat()
-            }
-            clipToOutline = true
-            addView(banner, android.widget.FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
-            ))
-            addView(overlay, android.widget.FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ))
-            // 圆角裁切：clipToOutline 要 outlineProvider 认背景才生效
-            outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
-        }
-        page.addView(frame, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, dp(132)
-        ).apply { topMargin = dp(4) })
-    }
-
-    /** 首页顶部状态：一眼看清「能不能用」，不用点进去猜 */
-    private fun statusCard() {
-        statusDotBg = GradientDrawable().apply {
-            shape = GradientDrawable.OVAL
-            setColor(0xFF9AA8BB.toInt())
-        }
-        statusDot = View(this).apply {
-            background = statusDotBg
-            layoutParams = LinearLayout.LayoutParams(dp(10), dp(10)).apply {
-                topMargin = dp(4)
-                rightMargin = dp(12)
-            }
-        }
-        statusText = TextView(this).apply {
-            setTextColor(cOnSurface)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-            setLineSpacing(dp(5).toFloat(), 1f)
-        }
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(dp(16), dp(14), dp(16), dp(14))
-            background = GradientDrawable().apply {
-                setColor(cContainerHigh)
-                cornerRadius = dp(20).toFloat()
-            }
-            addView(statusDot)
-            addView(statusText, LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f
-            ))
-        }
-        page.addView(row, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-        ).apply { topMargin = dp(12) })
-        refreshStatus()
-    }
-
-    /**
-     * 从系统设置授权回来时要重新读一遍：状态卡是建页面时填的，不刷新就会一直显示旧状态
-     * （用户刚授权完回到首页，却还写着「未开启」，会以为授权没生效）。
-     */
-    override fun onResume() {
-        super.onResume()
-        if (::statusText.isInitialized) refreshStatus()
-    }
-
-    private fun refreshStatus() {
-        val cfg = Config(this)
-        val a11y = when {
-            WatchService.instance != null -> "运行中 ✓"
-            a11yEnabled() -> "已授权，但服务还没连上（点启动重挂）"
-            else -> "未开启（点启动去授权）"
-        }
-        statusText.text = listOf(
-            "无障碍服务：$a11y",
-            "Jev 密钥：" + if (cfg.hasKey()) "已配置（${cfg.apiKey.length} 字符）" else "还没填",
-            "聊天模型：" + if (cfg.hasChatKey()) cfg.chatModel else "没配（只有判读，没有候选文案）",
-            "常驻浮条：" + if (cfg.overlayEnabled) "开" else "关"
-        ).joinToString("\n")
-        // 左边的就绪色点：不读文字也能扫出状态（和下面入口卡片的色点是同一套语言）
-        // 绿＝服务在跑且两把密钥都齐；黄＝服务在跑但配置还缺；灰＝服务没起来
-        statusDotBg.setColor(
-            when {
-                WatchService.instance != null && cfg.hasKey() && cfg.hasChatKey() -> 0xFF7EE0A8.toInt()
-                WatchService.instance != null -> 0xFFFFD54F.toInt()
-                else -> 0xFF9AA8BB.toInt()
-            }
-        )
-    }
-
-    private fun stopButton() {
-        val b = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-            text = "关闭"
-            textSize = 15f
-            isAllCaps = false
-            cornerRadius = dp(20)
-            setOnClickListener { doStop() }
-        }
-        page.addView(b, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-        ).apply { topMargin = dp(8) })
-    }
-
-    /**
-     * 关闭：停掉判读、收起浮条、撤掉通知、注销无障碍服务，然后清掉整个任务栈。
-     *
-     * 关于「关闭所有进程」：Android 不给 App 杀自己进程的权限（那是系统的活），
-     * 而且杀进程也不会关掉无障碍服务 —— 服务是系统托管的。所以这里做的是
-     * disableSelf()（真正注销服务）+ finishAndRemoveTask()（把任务栈里的界面全清掉），
-     * 效果就是「全停了」，剩下的空进程由系统回收。
-     */
-    private fun doStop() {
-        val msg = WatchService.instance?.shutdown() ?: "无障碍服务本来就没在跑"
-        toast(msg)
-        finishAndRemoveTask()
-    }
-
-    private fun startButton() {
-        val b = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonStyle).apply {
-            text = "启动"
-            textSize = 15f
-            isAllCaps = false
-            cornerRadius = dp(20)
-            setOnClickListener { doStart() }
-        }
-        page.addView(b, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-        ).apply { topMargin = dp(12) })
-    }
+    // ────────────────────────── 启动 / 关闭
 
     /**
      * 启动按钮。顺序有讲究：
@@ -302,7 +368,21 @@ class MainActivity : AppCompatActivity() {
             return
         }
         toast(svc.restartSelf())
-        if (!Config(this).hasKey()) toast("还没配 Jev 密钥，去「模型密钥配置」填一下")
+        if (!Config(this).hasKey()) toast("还没配 Jev 密钥，去「模型密钥」填一下")
+    }
+
+    /**
+     * 关闭：停掉判读、收起浮条、撤掉通知、注销无障碍服务，然后清掉整个任务栈。
+     *
+     * 关于「关闭所有进程」：Android 不给 App 杀自己进程的权限（那是系统的活），
+     * 而且杀进程也不会关掉无障碍服务 —— 服务是系统托管的。所以这里做的是
+     * disableSelf()（真正注销服务）+ finishAndRemoveTask()（把任务栈里的界面全清掉），
+     * 效果就是「全停了」，剩下的空进程由系统回收。
+     */
+    private fun doStop() {
+        val msg = WatchService.instance?.shutdown() ?: "无障碍服务本来就没在跑"
+        toast(msg)
+        finishAndRemoveTask()
     }
 
     /** 无障碍服务是否已在系统设置里被勾选（必须用实际包名，debug 包带 .debug 后缀） */
@@ -324,6 +404,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // ────────────────────────── 首启须知
+
     /**
      * 首启须知：读微信聊天内容、并把内容发给你自己配置的第三方接口 —— 这两件事必须先有**明确的同意**。
      *
@@ -335,7 +417,7 @@ class MainActivity : AppCompatActivity() {
     private fun maybeAskConsent() {
         val cfg = Config(this)
         if (cfg.consentVersion >= Privacy.VERSION) return
-        androidx.appcompat.app.AlertDialog.Builder(this)
+        AlertDialog.Builder(this)
             .setTitle("使用前请先确认")
             .setMessage(Privacy.disclosure())
             .setCancelable(false)
@@ -350,8 +432,8 @@ class MainActivity : AppCompatActivity() {
             .setNeutralButton("打开隐私政策") { _, _ ->
                 try {
                     startActivity(
-                        android.content.Intent(
-                            android.content.Intent.ACTION_VIEW,
+                        Intent(
+                            Intent.ACTION_VIEW,
                             android.net.Uri.parse(Privacy.URL)
                         )
                     )
@@ -364,100 +446,22 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
+    // ────────────────────────── 导航
+
+    /** 进二级页：带 section 协议打开设置页；转场走 ThemeExt 的双路径封装 */
+    private fun openSection(section: String) {
+        startActivity(
+            Intent(this, SettingsActivity::class.java).putExtra("screen", section)
+        )
+        playForwardTransition()
+    }
+
     private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
 
-    /**
-     * 进二级页的转场：右边滑入 + 旧的淡出。
-     *
-     * 不这么做的话点卡片是「啪」地整页换掉，观感像卡了一下、也看不出层级关系；
-     * 有方向感的滑动能直接告诉用户「你进到更深一层了」，返回时反向滑回来。
-     * 用系统自带的 android.R.anim.*，不新增任何资源文件。
-     */
-    @Suppress("DEPRECATION")
-    private fun forwardTransition() = overridePendingTransition(
-        R.anim.slide_in_right, R.anim.slide_out_left
-    )
-
-    /** 一行入口：左边一个色点（分区色），中间标题+说明，右边一个 › */
-    private fun row(title: String, sub: String, section: String, accent: Int) {
-        val dot = View(this).apply {
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(accent)
-            }
-            layoutParams = LinearLayout.LayoutParams(dp(10), dp(10)).apply {
-                rightMargin = dp(14)
-                gravity = Gravity.CENTER_VERTICAL
-            }
-        }
-        val texts = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            addView(TextView(this@MainActivity).apply {
-                text = title
-                setTextColor(cOnSurface)
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 15.5f)
-                typeface = Typeface.DEFAULT_BOLD
-            })
-            addView(TextView(this@MainActivity).apply {
-                text = sub
-                setTextColor(cOnSurfaceVariant)
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-                setLineSpacing(dp(3).toFloat(), 1f)
-                setPadding(0, dp(3), 0, 0)
-            })
-        }
-        val arrow = TextView(this).apply {
-            text = "›"
-            setTextColor(cOnSurfaceVariant)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
-            setPadding(dp(8), 0, 0, 0)
-        }
-        val inner = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(16), dp(14), dp(14), dp(14))
-            addView(dot)
-            addView(texts, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-            addView(arrow)
-        }
-        val card = MaterialCardView(this).apply {
-            radius = dp(20).toFloat()
-            cardElevation = 0f
-            strokeWidth = 0
-            setCardBackgroundColor(cContainerHigh)
-            isClickable = true
-            isFocusable = true
-            addView(inner)
-            setOnClickListener {
-                startActivity(
-                    Intent(this@MainActivity, SettingsActivity::class.java).putExtra("screen", section)
-                )
-                forwardTransition()
-            }
-        }
-        page.addView(card, LinearLayout.LayoutParams(
+    private fun wrapTop(topDp: Int): LinearLayout.LayoutParams =
+        LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-        ).apply { topMargin = dp(10) })
-    }
+        ).apply { topMargin = dp(topDp) }
 
-    private fun attr(@androidx.annotation.AttrRes id: Int, fallback: Int): Int {
-        val tv = TypedValue()
-        return if (theme.resolveAttribute(id, tv, true) && tv.data != 0) tv.data else fallback
-    }
-
-    private val cOnSurface: Int get() = attr(com.google.android.material.R.attr.colorOnSurface, 0xFF1A1C1E.toInt())
-    private val cOnSurfaceVariant: Int
-        get() = attr(com.google.android.material.R.attr.colorOnSurfaceVariant, 0xFF44474E.toInt())
-    private val cContainerHigh: Int
-        get() = attr(com.google.android.material.R.attr.colorSurfaceContainerHigh, 0xFFE7E8EC.toInt())
-
-    private fun sub(t: String) = page.addView(TextView(this).apply {
-        text = t
-        setTextColor(cOnSurfaceVariant)
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-        setLineSpacing(dp(4).toFloat(), 1f)
-        setPadding(dp(2), dp(10), dp(2), dp(6))
-    })
-
-    private fun dp(v: Int): Int = Math.round(v * resources.displayMetrics.density)
+    private fun dp(v: Int): Int = UiKit.dp(this, v)
 }

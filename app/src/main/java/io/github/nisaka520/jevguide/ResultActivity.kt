@@ -1,111 +1,45 @@
-﻿package io.github.nisaka520.jevguide
+package io.github.nisaka520.jevguide
 
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.content.res.ColorStateList
-import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
-import android.util.TypedValue
 import android.view.Gravity
-import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.google.android.material.button.MaterialButton
-import com.google.android.material.card.MaterialCardView
 import com.google.android.material.progressindicator.LinearProgressIndicator
+import io.github.nisaka520.jevguide.DraftGenerator.DraftGen
+import io.github.nisaka520.jevguide.ui.Design
+import io.github.nisaka520.jevguide.ui.UiKit
+import io.github.nisaka520.jevguide.ui.isNight
 
-/**
- * 一次分析的全部产物（判读 + 攻略度 + 候选文案）。
- *
- * 为什么不直接传 `Verdict`：结果页可能由无障碍服务在**另一个进程生命周期**里拉起，
- * 塞 Parcelable 要额外写一堆样板；这里只挑结果页真正要显示的几个字符串，
- * Intent extras 足够小，也不会因为类结构变化而崩。
- */
-data class ResultPayload(
-    val title: String,
-    val relation: String,
-    val guidePercent: Int?,
-    val trend: Int?,
-    val lines: List<String>,
-    val drafts: List<Draft>,
-    val costMs: Long,
-    /** 重新生成要用：拼好的 state 与记忆块 */
-    val state: String,
-    val memoryBlock: String,
-    val chatReady: Boolean,
-    /**
-     * true = 攻略度已经判出来、文案还在路上（浮条先上屏的结果）。
-     * 这时候打开结果页只能看到判读，别把"没生成"误报成"生成失败"。
-     */
-    val draftsPending: Boolean = false
-)
+// 数据契约 ResultPayload 与拉起逻辑 intent()/show() 在同包的 ResultPayload.kt（阶段一抽走）；
+// intent()/show() 是本类 companion 的扩展函数，调用点写法不变。
+// 「重新生成」的编排也不在本页：DraftGenerator 是判读流程与本页共用的唯一实现。
 
 /**
  * 结果页：攻略度 + Jev 判读 + 候选文案（点一下就复制）。
  *
- * 用 **Material 3** 控件（卡片、进度条、tonal 按钮），主题是 `Theme.JevGuide.Dialog` ——
- * 所以它是浮在微信上面的一层，关掉就回到聊天。颜色一律走主题属性，
- * 在 Android 12+ 上会跟着壁纸取色（Material You），跟设置页保持一致。
- *
- * 布局仍用代码搭：这一屏的控件数量不多，且内容全是动态的（几条文案、几行判读），
- * 用 XML 反而要写一堆 findView 样板。
+ * 主题是 `Theme.JevGuide.Dialog` —— 它浮在微信上面，关掉就回到聊天。
+ * 视觉全部走 [Design]/[UiKit]（「仪表台」同一套变量）：这一屏的主角是**攻略度英雄卡**，
+ * 大号百分比用 [Design.Type.DISPLAY]；好/中/差语义色一律走 [Design.scoreColor] 的
+ * 红绿灯口径 —— 与常驻浮条、首页就绪面板同一个来源
+ * （旧版本页自带一套好/中/差色值，与浮条口径不一致，已删）。
+ * 布局仍用代码搭：这一屏控件少而内容全动态（几条文案、几行判读），XML 反而要多写样板。
  */
 class ResultActivity : AppCompatActivity() {
 
-    companion object {
-        private const val EX_TITLE = "title"
-        private const val EX_RELATION = "relation"
-        private const val EX_GUIDE = "guide"
-        private const val EX_TREND = "trend"
-        private const val EX_LINES = "lines"
-        private const val EX_DRAFT_TITLES = "draft_titles"
-        private const val EX_DRAFT_TEXTS = "draft_texts"
-        private const val EX_COST = "cost"
-        private const val EX_STATE = "state"
-        private const val EX_MEM = "mem"
-        private const val EX_CHAT_READY = "chat_ready"
-        private const val EX_DRAFTS_PENDING = "drafts_pending"
-
-        /**
-         * 拉起结果页用的 Intent。单独拆出来：兜底通知的 contentIntent 也要这组 extras，
-         * 而从通知栏点开是不受「后台启动拦截」限制的 —— 结果页拉不起来时，
-         * 通知内容照旧，点通知就能看到完整结果（原来点开的是设置页，结果不在那儿）。
-         */
-        fun intent(ctx: Context, p: ResultPayload): Intent =
-            Intent(ctx, ResultActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                putExtra(EX_TITLE, p.title)
-                putExtra(EX_RELATION, p.relation)
-                putExtra(EX_GUIDE, p.guidePercent ?: -1)
-                putExtra(EX_TREND, p.trend ?: Int.MIN_VALUE)
-                putStringArrayListExtra(EX_LINES, ArrayList(p.lines))
-                putStringArrayListExtra(EX_DRAFT_TITLES, ArrayList(p.drafts.map { it.title }))
-                putStringArrayListExtra(EX_DRAFT_TEXTS, ArrayList(p.drafts.map { it.text }))
-                putExtra(EX_COST, p.costMs)
-                putExtra(EX_STATE, p.state)
-                putExtra(EX_MEM, p.memoryBlock)
-                putExtra(EX_CHAT_READY, p.chatReady)
-                putExtra(EX_DRAFTS_PENDING, p.draftsPending)
-            }
-
-        /**
-         * 拉起结果页。返回 false 表示没能拉起（后台启动被系统拦、或没有 Activity 环境），
-         * 调用方据此降级成通知/Toast —— 工具最忌讳"点了没反应"。
-         */
-        fun show(ctx: Context, p: ResultPayload): Boolean = try {
-            ctx.startActivity(intent(ctx, p))
-            true
-        } catch (t: Throwable) {
-            AppLog.add("结果页启动失败：${t.javaClass.simpleName} ${t.message ?: ""}")
-            false
-        }
-    }
+    /**
+     * companion 本体（extra 键名 + intent()/show()）在 ResultPayload.kt，
+     * 以 companion 扩展函数的形式挂回来 —— `ResultActivity.intent/show(...)`
+     * 的调用点写法不变。这里保留一个空的 companion，作为那组扩展的接收者。
+     */
+    companion object {}
 
     private lateinit var draftsBox: LinearLayout
     private lateinit var statusLine: TextView
@@ -133,9 +67,10 @@ class ResultActivity : AppCompatActivity() {
         val chatReady = intent.getBooleanExtra(EX_CHAT_READY, false)
         draftsPending = intent.getBooleanExtra(EX_DRAFTS_PENDING, false)
 
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(18), dp(20), dp(16))
+        val night = isNight()
+
+        val root = UiKit.column(this).apply {
+            setPadding(dp(Design.Space.L), dp(Design.Space.L), dp(Design.Space.L), dp(Design.Space.L))
         }
         setContentView(ScrollView(this).apply { addView(root) })
         // 点弹窗之外的空白处也能关掉（用户要求）。这一屏用的是 Dialog 主题，
@@ -143,106 +78,139 @@ class ResultActivity : AppCompatActivity() {
         setFinishOnTouchOutside(true)
 
         // ── 抬头：谁 + 什么关系 ──
-        root.addView(text(if (title.isEmpty()) "微信" else title, 22f, cOnSurface, bold = true))
-        root.addView(text(
-            if (relation.isEmpty()) "弦外之音 · 判读结果" else "弦外之音 · $relation",
-            12.5f, cOnSurfaceVariant, bold = false
-        ).apply { setPadding(0, dp(2), 0, dp(10)) })
+        root.addView(
+            UiKit.text(
+                this, if (title.isEmpty()) "微信" else title,
+                Design.Type.TITLE, Design.onSurface(this), bold = true
+            )
+        )
+        root.addView(
+            UiKit.text(
+                this,
+                if (relation.isEmpty()) "弦外之音 · 判读结果" else "弦外之音 · $relation",
+                Design.Type.CAPTION, Design.onSurfaceVariant(this)
+            ).apply { setPadding(0, dp(Design.Space.XS), 0, 0) },
+            matchWrap(top = 0, bottom = Design.Space.M)
+        )
 
         // ── 攻略度：这一屏的主角 —— 装进一张圆角英雄卡里，和下面的判读/文案拉开层次 ──
         if (guide >= 0) {
+            val tint = Design.scoreColor(guide, night)
             // 英雄卡底色带一点分数色渐变：卡片区隔靠色阶不够时，分数色再托一层，
-            // 好坏一眼可辨，但浓度压得很低（10%~22%），不抢 52sp 大数字
-            val tint = guideColor(guide)
-            val hero = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                setPadding(dp(18), dp(16), dp(18), dp(18))
-                background = android.graphics.drawable.GradientDrawable(
-                    android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
-                    intArrayOf(blend(cContainerLow, tint, 0.10f), blend(cContainerLow, tint, 0.22f))
-                ).apply { cornerRadius = dp(24).toFloat() }
+            // 好坏一眼可辨，但浓度压得很低（10%~22%），不抢大数字
+            val hero = UiKit.column(this).apply {
+                setPadding(dp(Design.Space.L), dp(Design.Space.L), dp(Design.Space.L), dp(Design.Space.L))
+                background = GradientDrawable(
+                    GradientDrawable.Orientation.TOP_BOTTOM,
+                    intArrayOf(
+                        blend(Design.containerLow(this@ResultActivity), tint, 0.10f),
+                        blend(Design.containerLow(this@ResultActivity), tint, 0.22f)
+                    )
+                ).apply { cornerRadius = dp(Design.Radius.LG).toFloat() }
             }
-            val head = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.BOTTOM
-            }
-            head.addView(text("$guide", 52f, guideColor(guide), bold = true))
-            head.addView(text("%", 22f, guideColor(guide), bold = true).apply {
-                setPadding(0, 0, dp(10), dp(8))
-            })
+            val head = UiKit.row(this).apply { gravity = Gravity.BOTTOM }
+            head.addView(UiKit.text(this, "$guide", Design.Type.DISPLAY, tint, bold = true))
+            head.addView(
+                UiKit.text(this, "%", Design.Type.TITLE, tint, bold = true)
+                    .apply { setPadding(0, 0, dp(Design.Space.M), 0) }
+            )
             val (tailText, tailColor) = when {
-                trend == null -> "首次记录" to cOnSurfaceVariant
-                trend > 0 -> "↑ +$trend" to okColor
-                trend < 0 -> "↓ $trend" to badColor
-                else -> "持平" to cOnSurfaceVariant
+                trend == null -> "首次记录" to Design.onSurfaceVariant(this)
+                trend > 0 -> "↑ +$trend" to Design.scoreGood(night)
+                trend < 0 -> "↓ $trend" to Design.scoreBad(night)
+                else -> "持平" to Design.onSurfaceVariant(this)
             }
-            head.addView(text(tailText, 14f, tailColor, bold = true).apply {
-                setPadding(0, 0, 0, dp(12))
-            })
+            head.addView(
+                UiKit.text(this, tailText, Design.Type.BODY, tailColor, bold = true)
+                    .apply { setPadding(0, 0, 0, dp(Design.Space.XS)) }
+            )
             hero.addView(head)
 
             // 进度条带动画：从 0 走到当前值，一眼看出"到了哪个档"，比静态条更有"判读完了"的完成感
-            hero.addView(LinearProgressIndicator(this).apply {
-                setProgressCompat(guide, true)
-                max = 100
-                trackCornerRadius = dp(5)
-                trackThickness = dp(8)
-                setIndicatorColor(guideColor(guide))
-                setTrackColor(attr(com.google.android.material.R.attr.colorSurfaceVariant))
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-                ).apply { topMargin = dp(2) }
-            })
-            root.addView(hero, matchWrap(top = 0, bottom = 14))
+            hero.addView(
+                LinearProgressIndicator(this).apply {
+                    setProgressCompat(guide, true)
+                    max = 100
+                    trackCornerRadius = dp(5)
+                    trackThickness = dp(8)
+                    setIndicatorColor(tint)
+                    setTrackColor(
+                        UiKit.attr(
+                            this@ResultActivity,
+                            com.google.android.material.R.attr.colorSurfaceVariant,
+                            0xFFDAE4E4.toInt()
+                        )
+                    )
+                    layoutParams = LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                    ).apply { topMargin = dp(Design.Space.XS) }
+                }
+            )
+            root.addView(hero, matchWrap(top = 0, bottom = Design.Space.M))
         }
 
         // ── Jev 判读行：放在一张低层卡片里，跟文案区分开 ──
         if (lines.isNotEmpty()) {
-            val card = card(cContainerLow)
-            lines.forEach { card.addView(text(it, 13.5f, cOnSurface, bold = false)) }
-            root.addView(card, matchWrap(top = 0, bottom = 14))
+            val card = UiKit.card(this, Design.containerLow(this), Design.Radius.MD)
+            card.addView(
+                UiKit.column(this).apply {
+                    setPadding(dp(Design.Space.L), dp(Design.Space.M), dp(Design.Space.L), dp(Design.Space.M))
+                    lines.forEach {
+                        addView(UiKit.text(this@ResultActivity, it, Design.Type.BODY, Design.onSurface(this@ResultActivity)))
+                    }
+                }
+            )
+            root.addView(card, matchWrap(top = 0, bottom = Design.Space.M))
         }
 
         // ── 候选文案 ──
-        root.addView(text("候选文案 · 点一下复制", 14f, cPrimary, bold = true).apply {
-            setPadding(0, 0, 0, dp(2))
-        })
-        draftsBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        root.addView(
+            UiKit.text(this, "候选文案 · 点一下复制", Design.Type.BODY, Design.primary(this), bold = true)
+                .apply { setPadding(0, 0, 0, dp(Design.Space.XS)) }
+        )
+        draftsBox = UiKit.column(this)
         root.addView(draftsBox)
         val titles = intent.getStringArrayListExtra(EX_DRAFT_TITLES).orEmpty()
         val texts = intent.getStringArrayListExtra(EX_DRAFT_TEXTS).orEmpty()
         val drafts = titles.indices.map { Draft(it, titles[it], texts.getOrElse(it) { "" }) }
         renderDrafts(drafts)
 
-        statusLine = text("", 11.5f, cOnSurfaceVariant, bold = false)
+        statusLine = UiKit.text(this, "", Design.Type.MICRO, Design.onSurfaceVariant(this))
         root.addView(statusLine)
 
-        // ── 按钮：主操作给实心，其余给 tonal ──
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
+        // ── 按钮：复制全部是主动作（实心），重新生成是次动作（描边）── 与首页同一语法
+        val row = UiKit.row(this).apply {
             gravity = Gravity.END
-            setPadding(0, dp(12), 0, 0)
+            setPadding(0, dp(Design.Space.M), 0, 0)
         }
         if (chatReady && state.isNotEmpty()) {
-            row.addView(btn("重新生成") { regenerate() })
+            row.addView(
+                UiKit.button(this, "重新生成", filled = false) { regenerate() },
+                buttonWrap()
+            )
         }
-        row.addView(btn("复制全部") {
-            val all = drafts.joinToString("\n\n") { "【${it.title}】\n${it.text}" }
-            copy("弦外之音", all)
-            toast("已复制 ${drafts.size} 条文案")
-        })
+        row.addView(
+            UiKit.button(this, "复制全部", filled = true) {
+                val all = drafts.joinToString("\n\n") { "【${it.title}】\n${it.text}" }
+                copy("弦外之音", all)
+                toast("已复制 ${drafts.size} 条文案")
+            },
+            buttonWrap()
+        )
         root.addView(row)
 
         // 底部：随机一句与爱有关的古诗。纯文字，**不设点击监听**，点它不跳转（用户要求）。
         root.addView(
-            text(Poems.random(), 12.5f, cOnSurfaceVariant, bold = false).apply { alpha = 0.85f },
-            matchWrap(top = 18, bottom = 2)
+            UiKit.text(this, Poems.random(), Design.Type.CAPTION, Design.onSurfaceVariant(this))
+                .apply { alpha = 0.85f },
+            matchWrap(top = Design.Space.L, bottom = 0)
         )
 
         // 提示：这一屏是 Dialog 主题，点四周空白就能关（用户要求：点弹窗外也能关，并且给提示）
         root.addView(
-            text("点四周空白处关闭", 11.5f, cOnSurfaceVariant, bold = false).apply { alpha = 0.55f },
-            matchWrap(top = 2, bottom = 10)
+            UiKit.text(this, "点四周空白处关闭", Design.Type.MICRO, Design.onSurfaceVariant(this))
+                .apply { alpha = 0.55f },
+            matchWrap(top = Design.Space.XS, bottom = Design.Space.M)
         )
 
         statusLine.text = buildString {
@@ -282,29 +250,30 @@ class ResultActivity : AppCompatActivity() {
         if (drafts.isEmpty()) {
             // 攻略度已上屏、文案还在生成的过渡态，跟"真没生成"要说清楚，
             // 不然用户会以为是生成失败（浮条先上屏之后这个窗口是能被点开的）
-            draftsBox.addView(text(
-                if (draftsPending) "（文案还在生成，几秒后重开就有了）" else "（这次没生成文案）",
-                13.5f, cOnSurfaceVariant, bold = false
-            ))
+            draftsBox.addView(
+                UiKit.text(
+                    this,
+                    if (draftsPending) "（文案还在生成，几秒后重开就有了）" else "（这次没生成文案）",
+                    Design.Type.BODY, Design.onSurfaceVariant(this)
+                )
+            )
             return
         }
         drafts.forEachIndexed { i, d ->
-            val box = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                setPadding(dp(16), dp(12), dp(16), dp(14))
+            val box = UiKit.column(this).apply {
+                setPadding(dp(Design.Space.L), dp(Design.Space.M), dp(Design.Space.L), dp(Design.Space.M))
+                addView(
+                    UiKit.text(
+                        this@ResultActivity, "${circle(i)} ${d.title}",
+                        Design.Type.CAPTION, Design.primary(this@ResultActivity), bold = true
+                    ).apply { setPadding(0, 0, 0, dp(Design.Space.S)) }
+                )
+                addView(UiKit.text(this@ResultActivity, d.text, Design.Type.BODY, Design.onSurface(this@ResultActivity)))
             }
-            box.addView(text("${circle(i)} ${d.title}", 12.5f, cPrimary, bold = true).apply {
-                setPadding(0, 0, 0, dp(6))
-            })
-            box.addView(text(d.text, 16f, cOnSurface, bold = false))
 
-            // 整张卡片可点＝复制。用 MaterialCardView 而不是自己画背景，是为了白拿涟漪反馈 ——
+            // 整张卡片可点＝复制。用 MaterialCardView（UiKit.card）白拿涟漪反馈 ——
             // 点了没反应是这类"复制型"界面最让人不放心的地方。
-            val card = MaterialCardView(this).apply {
-                radius = dp(18).toFloat()
-                cardElevation = 0f
-                strokeWidth = 0
-                setCardBackgroundColor(cContainerHigh)
+            val card = UiKit.card(this, Design.containerHigh(this), Design.Radius.MD).apply {
                 isClickable = true
                 isFocusable = true
                 addView(box)
@@ -315,11 +284,14 @@ class ResultActivity : AppCompatActivity() {
                     finish()
                 }
             }
-            draftsBox.addView(card, matchWrap(top = 10, bottom = 0))
+            draftsBox.addView(card, matchWrap(top = Design.Space.S, bottom = 0))
         }
     }
 
-    /** 重新生成：只重打聊天模型（Jev 的判读与攻略度不动），省一次 Jev 调用 */
+    /**
+     * 重新生成：只重打聊天模型（Jev 的判读与攻略度不动），省一次 Jev 调用。
+     * 编排本体在 [DraftGenerator] —— 与判读流程共用同一份，本页不再各写各的。
+     */
     private fun regenerate() {
         val cfg = Config(this)
         if (!cfg.hasChatKey()) {
@@ -328,19 +300,15 @@ class ResultActivity : AppCompatActivity() {
         }
         statusLine.text = "重新生成中…"
         Thread({
-            val user = ReplyPrompt.buildUser(emptyList(), state, n)
-            val r = ChatHttp.complete(
-                cfg.chatBaseUrl, cfg.chatApiKey, cfg.chatModel,
-                ReplyPrompt.buildSystem(memBlock, cfg.lang, cfg.promptExtra, cfg.styles(), n), user
-            )
+            val r = DraftGenerator.request(cfg, memBlock, emptyList(), state, n)
             runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
                 when (r) {
-                    is ChatResult.Ok -> {
-                        val ds = ReplyPrompt.parse(r.text, n)
-                        renderDrafts(ds)
-                        statusLine.text = "已重新生成 ${ds.size} 条"
+                    is DraftGen.Ok -> {
+                        renderDrafts(r.drafts)
+                        statusLine.text = "已重新生成 ${r.drafts.size} 条"
                     }
-                    is ChatResult.Err -> statusLine.text = "重新生成失败：" + r.message
+                    is DraftGen.Err -> statusLine.text = "重新生成失败：" + r.message
                 }
             }
         }, "jevguide-regen").start()
@@ -355,16 +323,9 @@ class ResultActivity : AppCompatActivity() {
         }
     }
 
-    private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
+    private fun toast(s: String) = Toast3.toast(this, s)
 
     private fun circle(i: Int) = listOf("①", "②", "③", "④", "⑤").getOrElse(i) { "${i + 1}." }
-
-    /** 攻略度配色：跟常驻浮条同一套阈值（≥70 好 / ≥40 中 / 其余差） */
-    private fun guideColor(p: Int) = when {
-        p >= 70 -> okColor
-        p >= 40 -> midColor
-        else -> badColor
-    }
 
     /** 两个颜色按比例混合（ratio=0 → a，1 → b）：给英雄卡调低浓度的分数色底 */
     private fun blend(a: Int, b: Int, ratio: Float): Int {
@@ -376,74 +337,12 @@ class ResultActivity : AppCompatActivity() {
         return (0xFF shl 24) or (r shl 16) or (g shl 8) or bl
     }
 
-    // ────────────────────────── 小工具（MD3）
+    // ────────────────────────── 小工具（全部走 UiKit/Design）
 
-    /** 取主题属性里的颜色 —— 这样 Material You 的壁纸取色才会生效（写死 R.color.* 是不会跟着走的） */
-    private fun attr(@androidx.annotation.AttrRes id: Int, fallback: Int = R.color.text): Int {
-        val tv = TypedValue()
-        return if (theme.resolveAttribute(id, tv, true) && tv.data != 0) tv.data else getColor(fallback)
-    }
-
-    private val cPrimary: Int get() = attr(com.google.android.material.R.attr.colorPrimary)
-    private val cOnSurface: Int get() = attr(com.google.android.material.R.attr.colorOnSurface)
-    private val cOnSurfaceVariant: Int get() = attr(com.google.android.material.R.attr.colorOnSurfaceVariant)
-    private val cContainerHigh: Int get() = attr(com.google.android.material.R.attr.colorSurfaceContainerHigh)
-    private val cContainerLow: Int get() = attr(com.google.android.material.R.attr.colorSurfaceContainerLow)
-
-    /**
-     * 好/中/差三档色。
-     *
-     * 为什么不用主题色：这三个是**语义色**（像红绿灯），必须一眼看出好坏 ——
-     * 跟着壁纸变成紫色或粉色就失去意义了。所以取固定的绿/黄/红，
-     * 但深色下要换更亮的一档，否则在深底上发闷。
-     */
-    private val okColor: Int get() = if (isNight) 0xFF7EE0A8.toInt() else 0xFF2E7D4F.toInt()
-    private val midColor: Int get() = if (isNight) 0xFFFFD54F.toInt() else 0xFF8A6100.toInt()
-    private val badColor: Int get() = if (isNight) 0xFFE57373.toInt() else 0xFFB3261E.toInt()
-    private val isNight: Boolean
-        get() = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
-            android.content.res.Configuration.UI_MODE_NIGHT_YES
-
-    private fun text(s: String, size: Float, color: Int, bold: Boolean): TextView =
-        TextView(this).apply {
-            text = s
-            textSize = size
-            setTextColor(color)
-            if (bold) setTypeface(typeface, Typeface.BOLD)
-            setLineSpacing(dp(5).toFloat(), 1f)
-        }
-
-    private fun card(fill: Int): LinearLayout = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        setPadding(dp(16), dp(12), dp(16), dp(14))
-        background = android.graphics.drawable.GradientDrawable().apply {
-            setColor(fill)
-            cornerRadius = dp(16).toFloat()
-        }
-    }
-
-    private fun btn(label: String, filled: Boolean = false, onClick: () -> Unit): MaterialButton =
-        MaterialButton(this, null, com.google.android.material.R.attr.materialButtonStyle).apply {
-            text = label
-            textSize = 13.5f
-            isAllCaps = false
-            cornerRadius = dp(12)
-            if (filled) {
-                // filled 也必须显式给前景色：不设的话实心按钮的文字会跟底色一样，
-                // 看起来就是一块纯色（用户反馈：纯色谁能看得懂）
-                backgroundTintList = ColorStateList.valueOf(attr(com.google.android.material.R.attr.colorPrimary))
-                setTextColor(attr(com.google.android.material.R.attr.colorOnPrimary))
-            } else {
-                backgroundTintList = ColorStateList.valueOf(
-                    attr(com.google.android.material.R.attr.colorSecondaryContainer)
-                )
-                setTextColor(attr(com.google.android.material.R.attr.colorOnSecondaryContainer))
-            }
-            setOnClickListener { onClick() }
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { leftMargin = dp(8) }
-        }
+    private fun buttonWrap(): LinearLayout.LayoutParams =
+        LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply { marginEnd = dp(Design.Space.S) }
 
     private fun matchWrap(top: Int, bottom: Int): LinearLayout.LayoutParams =
         LinearLayout.LayoutParams(
@@ -453,5 +352,5 @@ class ResultActivity : AppCompatActivity() {
             bottomMargin = dp(bottom)
         }
 
-    private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
+    private fun dp(v: Int): Int = UiKit.dp(this, v)
 }

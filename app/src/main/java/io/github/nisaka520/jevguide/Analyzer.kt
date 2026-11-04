@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.os.Build
+import io.github.nisaka520.jevguide.DraftGenerator.DraftGen
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -225,24 +226,15 @@ object Analyzer {
         }
     }
 
-    /** 调聊天模型出候选文案；任何异常都吞掉并返回空表（判读结果仍然要给用户） */
-    private fun generateDrafts(cfg: Config, memBlock: String, lines: List<String>, state: String): List<Draft> = try {
-        val r = ChatHttp.complete(
-            cfg.chatBaseUrl, cfg.chatApiKey, cfg.chatModel,
-            ReplyPrompt.buildSystem(memBlock, cfg.lang, cfg.promptExtra, cfg.styles(), cfg.draftsN),
-            ReplyPrompt.buildUser(lines, state, cfg.draftsN)
-        )
-        when (r) {
-            is ChatResult.Ok -> ReplyPrompt.parse(r.text, cfg.draftsN)
-            is ChatResult.Err -> {
-                AppLog.add("文案生成失败：" + r.message)
-                emptyList()
-            }
+    /**
+     * 调聊天模型出候选文案；失败（含异常）一律降级成空表 —— 判读结果仍然要给用户。
+     * 编排本体在 [DraftGenerator]（与结果页「重新生成」共用同一份，原两处重复实现已收敛）。
+     */
+    private fun generateDrafts(cfg: Config, memBlock: String, lines: List<String>, state: String): List<Draft> =
+        when (val r = DraftGenerator.request(cfg, memBlock, lines, state, cfg.draftsN)) {
+            is DraftGen.Ok -> r.drafts
+            is DraftGen.Err -> emptyList()
         }
-    } catch (t: Throwable) {
-        AppLog.add("文案生成异常：${t.javaClass.simpleName} ${t.message ?: ""}")
-        emptyList()
-    }
 
     private fun emptyMemory(key: String, name: String) =
         ContactMemory(key, name, "", "", emptyList(), emptyList(), emptyList(), System.currentTimeMillis(), 0)

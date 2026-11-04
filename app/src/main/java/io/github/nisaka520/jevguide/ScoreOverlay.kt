@@ -4,7 +4,6 @@ import android.accessibilityservice.AccessibilityService
 import android.content.Context
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
-import android.util.TypedValue
 import android.view.ContextThemeWrapper
 import android.view.Gravity
 import android.view.MotionEvent
@@ -13,6 +12,8 @@ import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import io.github.nisaka520.jevguide.ui.Design
+import io.github.nisaka520.jevguide.ui.UiKit
 import kotlin.math.abs
 
 /**
@@ -27,7 +28,8 @@ import kotlin.math.abs
  * ## 长相
  *
  * 胶囊形 + 左侧一个**分数色环**（≥70 绿 / ≥40 黄 / 其余红）+ 联系人与百分比。
- * 颜色取主题属性，所以能跟上 Material You 的壁纸取色（跟设置页、结果页一致）。
+ * 容器/描边走主题属性（`Theme.JevGuide.Overlay`，日夜跟随）；
+ * 分数语义色固定走 [Design.scoreColor] 的唯一口径（不跟壁纸取色，好坏必须是稳定的红绿灯）。
  *
  * ⚠ 它是用**无障碍服务的 context** 造 View 的，而 Material 主题不在那个 context 上，
  * 所以必须先套一层 `ContextThemeWrapper`，否则取主题属性会拿到系统默认值（颜色全错）。
@@ -102,13 +104,13 @@ object ScoreOverlay {
         return "$who · 攻略度 $percent%$tail"
     }
 
-    /** 分数配色：跟结果页保持一致，扫一眼就知道好坏 */
-    fun colorOf(percent: Int?): Int = when {
-        percent == null -> 0xFF9AA8BB.toInt()
-        percent >= 70 -> 0xFF7EE0A8.toInt()
-        percent >= 40 -> 0xFFFFD54F.toInt()
-        else -> 0xFFE57373.toInt()
-    }
+    /**
+     * 分数配色：转发 [Design.scoreColor] 的唯一口径（≥70 好 / ≥40 中 / 其余差，null=还没判）。
+     * 固定用**夜间提亮档**（night=true）：浮条叠在任意内容上，微信底色深浅不由我们控制，
+     * 亮一档在深浅两种底上都读得清 —— 旧版也是固定亮档，只是值各写一套（阶段三归一进 Design）。
+     * 纯函数、不碰 Android：JVM 单测（ScoreOverlayTest）直接钉这里的返回值。
+     */
+    fun colorOf(percent: Int?): Int = Design.scoreColor(percent, night = true)
 
     /** 显示或更新（已经在就只改文字与颜色） */
     fun show(service: AccessibilityService, cfg: Config, text: String, percent: Int?) {
@@ -135,22 +137,21 @@ object ScoreOverlay {
             }
 
             // Material 主题不在无障碍服务的 context 上，得自己套一层，否则取主题属性全是系统默认值
+            // （这条 ContextThemeWrapper 链是浮条能取到正确颜色的前提，动它前先在真机上验）
             val themed = ContextThemeWrapper(service, R.style.Theme_JevGuide_Overlay)
-            val container = themedColor(
-                themed, com.google.android.material.R.attr.colorSurfaceContainerHigh, 0xFF1A1F2A.toInt()
-            )
-            val outline = themedColor(themed, com.google.android.material.R.attr.colorOutline, 0xFF3A3A3E.toInt())
+            // 容器/描边走主题 attr（日夜跟随，UiKit.attr 唯一实现）；fallback 永远不该走到
+            val container = Design.containerHigh(themed)
+            val outline = Design.outline(themed)
 
-            val tv = TextView(themed).apply {
-                this.text = text
-                setTextColor(colorOf(percent))
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-                setPadding(dp(themed, 2), 0, 0, 0)
+            // 文字：CAPTION 档 + 0 行距补偿（单行胶囊，行距会把胶囊撑高）；
+            // 左侧 2dp 微调是给色环的光学对齐，不进间距阶梯
+            val tv = UiKit.text(themed, text, Design.Type.CAPTION, colorOf(percent), lineSpacingDp = 0).apply {
                 maxLines = 1
+                setPadding(UiKit.dp(themed, 2), 0, 0, 0)
             }
             val dot = View(themed).apply {
                 background = ringDrawable(service, percent)
-                layoutParams = LinearLayout.LayoutParams(dp(service, RING), dp(service, RING))
+                layoutParams = LinearLayout.LayoutParams(UiKit.dp(service, RING), UiKit.dp(service, RING))
             }
             // 左区：色环 + 名字与攻略度 —— 点它看结果/选项
             val left = LinearLayout(themed).apply {
@@ -164,27 +165,31 @@ object ScoreOverlay {
             // 想再读一次的人就找不到入口了（用户原话："读取一次之后，再点击浮条，变成了选项。之后怎么读取呢？"）
             val sep = View(themed).apply {
                 background = GradientDrawable().apply { setColor(outline) }
-                layoutParams = LinearLayout.LayoutParams(dp(service, 1), dp(service, 18)).apply {
-                    leftMargin = dp(service, 10)
-                    rightMargin = dp(service, 10)
+                layoutParams = LinearLayout.LayoutParams(UiKit.dp(service, 1), UiKit.dp(service, 18)).apply {
+                    leftMargin = UiKit.dp(service, Design.Space.M)
+                    rightMargin = UiKit.dp(service, Design.Space.M)
                 }
             }
             val icon = ImageView(themed).apply {
                 setImageResource(R.drawable.ic_scan)
                 imageTintList = android.content.res.ColorStateList.valueOf(colorOf(percent))
-                layoutParams = LinearLayout.LayoutParams(dp(service, 20), dp(service, 20))
+                // 20dp 图标与 DragTap 的「右端 52dp 识别区」配套：改尺寸必须同步改那边的常量
+                layoutParams = LinearLayout.LayoutParams(UiKit.dp(service, 20), UiKit.dp(service, 20))
             }
             val box = LinearLayout(themed).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
-                setPadding(dp(service, PAD_H), dp(service, PAD_V), dp(service, PAD_H), dp(service, PAD_V))
+                setPadding(
+                    UiKit.dp(service, PAD_H), UiKit.dp(service, PAD_V),
+                    UiKit.dp(service, PAD_H), UiKit.dp(service, PAD_V)
+                )
                 background = GradientDrawable().apply {
                     // 圆角给得比高度还大 → 系统会钳到"半高"，于是得到胶囊形（不用去量实际高度）
-                    cornerRadius = dp(service, 40).toFloat()
+                    cornerRadius = UiKit.dp(service, 40).toFloat()
                     setColor(container)
-                    setStroke(dp(service, 1), outline)
+                    setStroke(UiKit.dp(service, 1), outline)
                 }
-                elevation = dp(service, 6).toFloat()
+                elevation = UiKit.dp(service, 6).toFloat()
                 addView(left)
                 addView(sep)
                 addView(icon)
@@ -204,8 +209,8 @@ object ScoreOverlay {
                 // 钳回屏幕内：存下来的坐标可能来自换了分辨率/分屏的旧会话，
                 // 不钳的话浮条会被摆到屏幕外，"找不到了"只能去设置关了重开
                 val dm = service.resources.displayMetrics
-                x = cfg.overlayX.coerceIn(0, (dm.widthPixels - dp(service, 48)).coerceAtLeast(0))
-                y = cfg.overlayY.coerceIn(0, (dm.heightPixels - dp(service, 48)).coerceAtLeast(0))
+                x = cfg.overlayX.coerceIn(0, (dm.widthPixels - UiKit.dp(service, 48)).coerceAtLeast(0))
+                y = cfg.overlayY.coerceIn(0, (dm.heightPixels - UiKit.dp(service, 48)).coerceAtLeast(0))
             }
 
             box.setOnTouchListener(DragTap(service, cfg, w, p))
@@ -243,16 +248,11 @@ object ScoreOverlay {
         params = null
     }
 
-    /** 分数色环：空心圆环，颜色＝分数档位色 */
+    /** 分数色环：空心圆环，颜色＝分数档位色（[colorOf]，即 Design 语义色的固定亮档） */
     private fun ringDrawable(ctx: Context, percent: Int?): GradientDrawable = GradientDrawable().apply {
         shape = GradientDrawable.OVAL
         setColor(0x00000000)
-        setStroke(dp(ctx, RING_STROKE), colorOf(percent))
-    }
-
-    private fun themedColor(ctx: Context, attrId: Int, fallback: Int): Int {
-        val tv = TypedValue()
-        return if (ctx.theme.resolveAttribute(attrId, tv, true) && tv.data != 0) tv.data else fallback
+        setStroke(UiKit.dp(ctx, RING_STROKE), colorOf(percent))
     }
 
     private class DragTap(
@@ -300,10 +300,10 @@ object ScoreOverlay {
                         // 记下位置，下次还在原地
                         cfg.overlayX = p.x
                         cfg.overlayY = p.y
-                        // 右端 52dp 是「识别」键，其余部分点开结果/选项。
+                        // 右端 52dp 是「识别」键（图标 20dp + 胶囊内距/分隔线的合计区），其余部分点开结果/选项。
                         // 用坐标分区、而不是给子 View 挂点击：子 View 一旦可点就会吃掉事件，
-                        // 那样连拖动都没法从图标上起手了。
-                        val rightZone = v.width - dp(service, 52)
+                        // 那样连拖动都没法从图标上起手了。改图标尺寸时这个常量要同步。
+                        val rightZone = v.width - UiKit.dp(service, 52)
                         if (e.x >= rightZone) analyzeNow() else openResult()
                     } else if (dragged) {
                         cfg.overlayX = p.x
@@ -344,7 +344,4 @@ object ScoreOverlay {
             svc.analyzeNow(true)
         }
     }
-
-    private fun dp(ctx: Context, v: Int): Int =
-        Math.round(v * ctx.resources.displayMetrics.density)
 }

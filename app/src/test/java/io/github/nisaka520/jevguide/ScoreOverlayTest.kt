@@ -32,13 +32,16 @@ class ScoreOverlayTest {
 
     @Test
     fun colorsFollowTheSameBandsAsTheResultPage() {
-        assertEquals(0xFF7EE0A8.toInt(), ScoreOverlay.colorOf(70))
-        assertEquals(0xFF7EE0A8.toInt(), ScoreOverlay.colorOf(100))
-        assertEquals(0xFFFFD54F.toInt(), ScoreOverlay.colorOf(40))
-        assertEquals(0xFFFFD54F.toInt(), ScoreOverlay.colorOf(69))
-        assertEquals(0xFFE57373.toInt(), ScoreOverlay.colorOf(0))
-        assertEquals(0xFFE57373.toInt(), ScoreOverlay.colorOf(39))
-        assertEquals(0xFF9AA8BB.toInt(), ScoreOverlay.colorOf(null))
+        // 阶段三起 colorOf 转发 Design.scoreColor 的唯一口径（阈值不变：≥70 好 / ≥40 中 / 其余差，
+        // null=没判），固定用 Design 的夜间提亮档（浮条叠在任意内容上，亮档深浅底都读得清）。
+        // 这里钉住转发后的具体色值：改色必须是有意的设计决定（改 Design.kt + 改这里），不许顺手漂移。
+        assertEquals(0xFF3FD68F.toInt(), ScoreOverlay.colorOf(70))
+        assertEquals(0xFF3FD68F.toInt(), ScoreOverlay.colorOf(100))
+        assertEquals(0xFFF2C14E.toInt(), ScoreOverlay.colorOf(40))
+        assertEquals(0xFFF2C14E.toInt(), ScoreOverlay.colorOf(69))
+        assertEquals(0xFFEC7A70.toInt(), ScoreOverlay.colorOf(0))
+        assertEquals(0xFFEC7A70.toInt(), ScoreOverlay.colorOf(39))
+        assertEquals(0xFF8D99A6.toInt(), ScoreOverlay.colorOf(null))
     }
 
     @Test
