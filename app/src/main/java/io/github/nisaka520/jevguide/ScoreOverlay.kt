@@ -185,7 +185,7 @@ object ScoreOverlay {
                 )
                 background = GradientDrawable().apply {
                     // 圆角给得比高度还大 → 系统会钳到"半高"，于是得到胶囊形（不用去量实际高度）
-                    cornerRadius = UiKit.dp(service, 40).toFloat()
+                    cornerRadius = UiKit.dp(service, Design.Radius.PILL).toFloat()
                     setColor(container)
                     setStroke(UiKit.dp(service, 1), outline)
                 }

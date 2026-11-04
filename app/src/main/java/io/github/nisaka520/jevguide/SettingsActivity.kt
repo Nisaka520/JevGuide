@@ -2,11 +2,9 @@
 
 import android.Manifest
 import android.content.Intent
-import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.util.TypedValue
 import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.EditText
@@ -1020,15 +1018,14 @@ class SettingsActivity : AppCompatActivity() {
      * 控制台块（状态/最近结果/日志/记忆概况/提示词预览）：统一「低层容器 + 等宽小字」，
      * 一眼是"机器输出"。日志/记忆是要能选中复制的 —— 读不到东西时用户得能把它发给作者。
      */
-    private fun body(t: String): TextView = TextView(this).apply {
-        text = t
-        setTextColor(Design.onSurface(this@SettingsActivity))
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, Design.Type.CAPTION)
-        typeface = Typeface.MONOSPACE
-        setLineSpacing(dp(Design.Space.XS).toFloat(), 1f)
+    private fun body(t: String): TextView = UiKit.text(
+        this, t, Design.Type.CAPTION, Design.onSurface(this@SettingsActivity),
+        lineSpacingDp = Design.Space.XS,
+        mono = true,
+        selectable = true,
+    ).apply {
         setPadding(dp(Design.Space.L), dp(Design.Space.M), dp(Design.Space.L), dp(Design.Space.M))
         background = UiKit.surface(this@SettingsActivity, Design.containerLow(this@SettingsActivity), Design.Radius.MD)
-        setTextIsSelectable(true)
         cur.addView(this, wrapTop(Design.Space.S))
     }
 

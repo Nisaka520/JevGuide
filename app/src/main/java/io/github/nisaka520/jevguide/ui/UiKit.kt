@@ -49,7 +49,10 @@ object UiKit {
         return if (ctx.theme.resolveAttribute(id, tv, true) && tv.data != 0) tv.data else fallback
     }
 
-    /** 文本工厂：字号只认 [Design.Type]，行距固定 1f 倍率 + dp 补偿（与全 App 一致的中文行间） */
+    /**
+     * 文本工厂：字号只认 [Design.Type]，行距固定 1f 倍率 + dp 补偿（与全 App 一致的中文行间）。
+     * [mono] 等宽（机器输出块）；[selectable] 文本可选中复制 —— 都默认关，不影响普通文字。
+     */
     fun text(
         ctx: Context,
         s: String,
@@ -57,12 +60,17 @@ object UiKit {
         color: Int,
         bold: Boolean = false,
         lineSpacingDp: Int = 4,
+        mono: Boolean = false,
+        selectable: Boolean = false,
     ): TextView = TextView(ctx).apply {
         text = s
         setTextColor(color)
         setTextSize(TypedValue.COMPLEX_UNIT_SP, sizeSp)
+        // mono 先于 bold：两者同开时 bold 叠加在等宽字型上，而不是被等宽覆盖
+        if (mono) typeface = Typeface.MONOSPACE
         if (bold) setTypeface(typeface, Typeface.BOLD)
         setLineSpacing(dp(ctx, lineSpacingDp).toFloat(), 1f)
+        if (selectable) setTextIsSelectable(true)
     }
 
     /** 竖排容器 */
